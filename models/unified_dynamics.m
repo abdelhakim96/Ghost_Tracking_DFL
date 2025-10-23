@@ -1,0 +1,34 @@
+function state_dot = unified_dynamics(t, state, fw_params)
+    % This function orchestrates the simulation of a quadrotor tracking a fixed-wing aircraft.
+
+    % Unpack the combined state vector (quadrotor state is now 17 elements)
+    quad_state = state(1:17);
+    fw_state = state(18:30);
+
+    % --- Fixed-Wing Trajectory Generation ---
+    % Define constant control inputs for the fixed-wing to fly a simple trajectory.
+
+  
+    thrust = 40;      % Constant thrust (N)
+    elevator = -0.4;   % Constant elevator deflection (rad)
+    aileron = 0.00;       % No roll input
+    rudder = 0;        % No yaw input
+
+    % Calculate fixed-wing dynamics using the 6-DOF model.
+    [fw_state_dot, ref_acc_ned, ref_jerk_ned, ref_snap_ned] = fw_6dof_quat(t, fw_state, thrust, elevator, aileron, rudder, fw_params);
+
+    % --- Define Reference Trajectory for Quadrotor from Fixed-Wing State ---
+    % The reference is the dynamic state of the fixed-wing aircraft, provided in the NED frame.
+    
+    % Reference Position and Velocity (NED frame)
+    ref_pos_ned = fw_state(1:3);
+    ref_vel_ned = fw_state_dot(1:3); % This is v_ned from fw_6dof_quat output
+
+    % --- Pass Reference Trajectory to Quadrotor Controller ---
+    % The DFL controller uses the full state of the fixed-wing as the reference.
+    fw_orientation = fw_state(7:10); % Pass quaternion to the controller
+    quad_state_dot = quadrotor_dynamics_realtime(t, quad_state, ref_pos_ned, ref_vel_ned, ref_acc_ned, ref_jerk_ned, ref_snap_ned, 0, fw_orientation);
+
+    % --- Combine Derivatives ---
+    state_dot = [quad_state_dot; fw_state_dot];
+end
