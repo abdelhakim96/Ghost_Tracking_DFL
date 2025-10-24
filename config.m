@@ -45,3 +45,9 @@ fw_initial.u0 = 30;
 fw_initial.v0 = 0; 
 fw_initial.w0 = 0;
 fw_initial.x0 = [0; 0; -100; fw_initial.u0; fw_initial.v0; fw_initial.w0; 1; 0; 0; 0; 0; 0; 0]; % x, y, z, u, v, w, q0, q1, q2, q3, p, q, r
+
+%% Fixed-wing control inputs
+fw_controls.thrust = 40;      % Constant thrust (N)
+fw_controls.elevator = -0.4;   % Constant elevator deflection (rad)
+fw_controls.aileron = 0.00;       % No roll input
+fw_controls.rudder = 0;        % No yaw input
