@@ -1,4 +1,4 @@
-function state_dot = unified_dynamics(t, state, fw_params, fw_controls)
+function state_dot = unified_dynamics(t, state, fw_params, fw_controls, dfl_gains)
     % This function orchestrates the simulation of a quadrotor tracking a fixed-wing aircraft.
 
     % Unpack the combined state vector (quadrotor state is now 17 elements)
@@ -25,7 +25,7 @@ function state_dot = unified_dynamics(t, state, fw_params, fw_controls)
     % --- Pass Reference Trajectory to Quadrotor Controller ---
     % The DFL controller uses the full state of the fixed-wing as the reference.
     fw_orientation = fw_state(7:10); % Pass quaternion to the controller
-    quad_state_dot = quadrotor_dynamics_realtime(t, quad_state, ref_pos_ned, ref_vel_ned, ref_acc_ned, ref_jerk_ned, ref_snap_ned, 0, fw_orientation);
+    quad_state_dot = quadrotor_dynamics_realtime(t, quad_state, ref_pos_ned, ref_vel_ned, ref_acc_ned, ref_jerk_ned, ref_snap_ned, 0, fw_orientation, dfl_gains);
 
     % --- Combine Derivatives ---
     state_dot = [quad_state_dot; fw_state_dot];

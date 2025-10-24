@@ -51,3 +51,16 @@ fw_controls.thrust = 40;      % Constant thrust (N)
 fw_controls.elevator = -0.4;   % Constant elevator deflection (rad)
 fw_controls.aileron = 0.00;       % No roll input
 fw_controls.rudder = 0;        % No yaw input
+
+%% DFL Controller Gains
+% Position and Yaw Gains
+dfl_gains.c0 = 29250.0;  % Position gain
+dfl_gains.c1 = 22400.0;  % Velocity gain
+dfl_gains.c2 = 350.0;   % Acceleration gain
+dfl_gains.c3 = 100.0;    % Jerk gain
+dfl_gains.c4 = 10.0;   % Yaw gain
+dfl_gains.c5 = 10.00;    % Yaw rate gain
+
+% Gimbal Gains
+dfl_gains.c_phi = 50000.0;      % Proportional gain for gimbal roll
+dfl_gains.c_theta = 70000.0;    % Proportional gain for gimbal pitch

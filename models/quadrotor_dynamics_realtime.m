@@ -1,4 +1,4 @@
-function state_dot = quadrotor_dynamics_realtime(t, state, xd, vd, ad, jd, sd, psid, fw_orientation)
+function state_dot = quadrotor_dynamics_realtime(t, state, xd, vd, ad, jd, sd, psid, fw_orientation, dfl_gains)
 % This function defines the dynamics of the quadrotor using a DFL controller
 % with a first-order gimbal model.
 
@@ -22,16 +22,16 @@ zeta = state(16);       % Total thrust
 xi = state(17);         % Derivative of total thrust
 
 % Controller gains for the main body
-c0 = 29250.0;  % Position gain
-c1 = 22400.0;  % Velocity gain
-c2 = 350.0;   % Acceleration gain
-c3 = 100.0;    % Jerk gain
-c4 = 10.0;   % Yaw gain
-c5 = 10.00;    % Yaw rate gain
+c0 = dfl_gains.c0;  % Position gain
+c1 = dfl_gains.c1;  % Velocity gain
+c2 = dfl_gains.c2;   % Acceleration gain
+c3 = dfl_gains.c3;    % Jerk gain
+c4 = dfl_gains.c4;   % Yaw gain
+c5 = dfl_gains.c5;    % Yaw rate gain
 
 % Gains for the virtual controller of the first-order gimbal
-c_phi = 50000.0;      % Proportional gain for gimbal roll
-c_theta = 70000.0;    % Proportional gain for gimbal pitch
+c_phi = dfl_gains.c_phi;      % Proportional gain for gimbal roll
+c_theta = dfl_gains.c_theta;    % Proportional gain for gimbal pitch
 
 % Normalize the quaternion
 q_bw = q_bw / (norm(q_bw) + 1e-9);
