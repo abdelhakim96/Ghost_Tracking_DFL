@@ -6,7 +6,7 @@ This repository contains a set of MATLAB scripts that simulate a quadrotor with 
 
 The project is organized into the following directories:
 
--   **`DFL_controller/`**: Contains the scripts related to the Differential Flatness Controller.
+-   **`DFL_controller/`**: Contains the scripts related to the Dynamic Feedback Linearization Controller.
 -   **`models/`**: Contains the dynamics models for the quadrotor and the fixed-wing aircraft.
 -   **`utilities/`**: Contains helper functions used by the other scripts.
 
