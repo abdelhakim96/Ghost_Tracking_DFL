@@ -1,6 +1,6 @@
 # Quadrotor with Gimbal Tracking a Fixed-Wing Aircraft Simulation
 
-This repository contains a set of MATLAB scripts that simulate a quadrotor with a gimbal tracking a fixed-wing aircraft. The simulation uses a Differential Flatness Controller (DFL) for the quadrotor and a 6-degrees-of-freedom (6DOF) model for the fixed-wing aircraft.
+This repository contains a set of MATLAB scripts that simulate a quadrotor with a gimbal tracking a fixed-wing aircraft. The simulation uses a Dynamic Feedback Linearization for the quadrotor and a 6-degrees-of-freedom (6DOF) model for the fixed-wing aircraft.
 
 ## Project Structure
 
