@@ -31,7 +31,7 @@ fw_params.c = 1.22; % mean aerodynamic chord, m
 fw_params.rho = 1.225; % air density, kg/m^3
 fw_params.g = 9.81; % gravity, m/s^2
 
-% Aerodynamic Coefficients (representative values for a highly agile aircraft)
+% Aerodynamic Coefficients (representative values for a highly rolling aircraft)
 fw_params.CL0 = 0.4; fw_params.CL_alpha = 5.7; fw_params.CL_q = 7.0; fw_params.CL_de = -0.8;
 fw_params.CD0 = 0.04; fw_params.k = 0.05; fw_params.CDa = 0.1; fw_params.CD_q = 0.0; fw_params.CD_de = 0.0;
 fw_params.CY_beta = -1.2; fw_params.CY_p = -0.1; fw_params.CY_r = 0.2; fw_params.CY_da = 0.2; fw_params.CY_dr = -0.2;
@@ -63,7 +63,7 @@ aileron_input(roll_indices) = aileron_amplitude * sin(pi * (t_sim(roll_indices) 
 fw_controls.aileron = aileron_input;
 
 % Elevator input (sine pulse to pull up during the roll)
-elevator_amplitude = 0.1; % rad
+elevator_amplitude = 0.04; % rad
 elevator_input = zeros(size(t_sim));
 elevator_input(roll_indices) = elevator_amplitude * sin(pi * (t_sim(roll_indices) - roll_start_time) / roll_duration);
 fw_controls.elevator = elevator_input;

@@ -7,10 +7,20 @@ function state_dot = unified_dynamics(t, state, fw_params, fw_controls, dfl_gain
 
     % --- Fixed-Wing Trajectory Generation ---
     % Use control inputs from the fw_controls struct.
-    thrust = fw_controls.thrust;
-    elevator = fw_controls.elevator;
-    aileron = fw_controls.aileron;
-    rudder = fw_controls.rudder;
+    % Check if the controls are time-varying or constant.
+    if isfield(fw_controls, 't_sim') && isvector(fw_controls.thrust)
+        % Time-varying controls: interpolate for the current time t.
+        thrust = interp1(fw_controls.t_sim, fw_controls.thrust, t, 'linear', 'extrap');
+        elevator = interp1(fw_controls.t_sim, fw_controls.elevator, t, 'linear', 'extrap');
+        aileron = interp1(fw_controls.t_sim, fw_controls.aileron, t, 'linear', 'extrap');
+        rudder = interp1(fw_controls.t_sim, fw_controls.rudder, t, 'linear', 'extrap');
+    else
+        % Constant controls: use the scalar values directly.
+        thrust = fw_controls.thrust;
+        elevator = fw_controls.elevator;
+        aileron = fw_controls.aileron;
+        rudder = fw_controls.rudder;
+    end
 
     % Calculate fixed-wing dynamics using the 6-DOF model.
     [fw_state_dot, ref_acc_ned, ref_jerk_ned, ref_snap_ned] = fw_6dof_quat(t, fw_state, thrust, elevator, aileron, rudder, fw_params);

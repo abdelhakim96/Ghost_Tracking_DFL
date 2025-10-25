@@ -44,7 +44,7 @@ function [xdot, acc_ned, jerk_ned, snap_ned] = fw_6dof_quat(t, state, thrust, el
 
     % Total Aerodynamic Coefficients
     CL = CL0 + CL_a * alpha + CL_q * q_hat + CL_de * elevator;
-    CD = CD0 + k_ind * CL^2 + CD_a * alpha + CD_q * q_hat + CD_de * elevator;
+    CD = CD0 + k_ind * CL.^2 + CD_a * alpha + CD_q * q_hat + CD_de * elevator;
     CY = CY_b * beta + CY_p * p_hat + CY_r * r_hat + CY_da * aileron + CY_dr * rudder;
     Cl = Cl_b * beta + Cl_p * p_hat + Cl_r * r_hat + Cl_da * aileron + Cl_dr * rudder;
     Cm = Cm0 + Cm_a * alpha + Cm_q * q_hat + Cm_de * elevator;

@@ -2,14 +2,15 @@ clear all;
 clc;
 
 % Select the configuration file to use
-% 'default' or 'agile'
-config_to_run = 'agile'; 
+% 'loop', 'roll', or 'straight'
+config_to_run = 'roll';
 
-run(['config_' config_to_run '.m']);
+run(['trajectory_configs/config_' config_to_run '.m']);
 
 addpath('DFL_controller');
 addpath('models');
 addpath('utilities');
+addpath('trajectory_configs');
 
 %% Define global variables for quadrotor controller
 global m Ix Iy Iz g Ax Ay Az Ap Aq Ar
@@ -68,7 +69,7 @@ hold on;
 p2 = plot3(x_fw(:,1), x_fw(:,2), -x_fw(:,3), 'r--', 'LineWidth', 1.5);
 p2.Color(4) = 0.5; % Set transparency
 grid on;
-title('Quadrotor Tracking Fixed-Wing Trajectory');
+title(['Quadrotor Tracking Fixed-Wing Trajectory (' config_to_run ')']);
 xlabel('North (m)');
 ylabel('East (m)');
 zlabel('Altitude (m)');
@@ -110,7 +111,7 @@ V = (R_correction * V')';
 %V = (R_roll_180 * V')';
 
 % Add vector plots for forward directions and the STL model
-for i = 1:50:length(t) % Plot every 50th point to avoid clutter
+for i = 1:10:length(t) % Plot every 50th point to avoid clutter
     % Fixed-wing position and orientation
     pos_fw = [x_fw(i,1), x_fw(i,2), -x_fw(i,3)];
     q_fw = fw_state(i, 7:10); % [q0, q1, q2, q3]
