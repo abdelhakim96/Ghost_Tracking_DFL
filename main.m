@@ -158,21 +158,14 @@ for i = 1:8:length(t) % Plot every 50th point to avoid clutter
     gimbal_y = R_gimbal_world(:,2) * scale_gimbal;
     gimbal_z = R_gimbal_world(:,3) * scale_gimbal;
 
-    quiver3(pos_quad(1), pos_quad(2), pos_quad(3), gimbal_x(1), gimbal_x(2), -gimbal_x(3), 'm', 'LineWidth', 1, 'HandleVisibility','off'); % Magenta for x
-    quiver3(pos_quad(1), pos_quad(2), pos_quad(3), gimbal_y(1), gimbal_y(2), -gimbal_y(3), 'y', 'LineWidth', 1, 'HandleVisibility','off'); % Yellow for y
-    quiver3(pos_quad(1), pos_quad(2), pos_quad(3), gimbal_z(1), gimbal_z(2), -gimbal_z(3), 'k', 'LineWidth', 1, 'HandleVisibility','off'); % Black for z
-    % Reconstruct gimbal pointing vector in body frame from gimbal angles
-    % Assumes gimbal is mounted forwards
-    gimbal_vec_body = [cos(theta_g)*cos(phi_g); cos(theta_g)*sin(phi_g); -sin(theta_g)];
-    gimbal_forward_vec = R_quad * gimbal_vec_body;
+    quiver3(pos_quad(1), pos_quad(2), pos_quad(3), gimbal_x(1), gimbal_x(2), -gimbal_x(3), 'r', 'LineWidth', 1, 'HandleVisibility','off'); % Red for x
+    quiver3(pos_quad(1), pos_quad(2), pos_quad(3), gimbal_y(1), gimbal_y(2), -gimbal_y(3), 'g', 'LineWidth', 1, 'HandleVisibility','off'); % Green for y
+    quiver3(pos_quad(1), pos_quad(2), pos_quad(3), gimbal_z(1), gimbal_z(2), -gimbal_z(3), 'b', 'LineWidth', 1, 'HandleVisibility','off'); % Blue for z
 
     % Plot vectors
     if ~legend_added
-        q2 = quiver3(x_quad(i,1), x_quad(i,2), -x_quad(i,3), gimbal_forward_vec(1), gimbal_forward_vec(2), -gimbal_forward_vec(3), 5, 'c', 'LineWidth', 2, 'DisplayName', 'Gimbal Pointing');
-        legend([p1, p2, q2, p_stl], 'Quadrotor Path', 'Fixed-Wing Path', 'Gimbal Pointing', 'Ghost FW aeroplane');
+        legend([p1, p2, p_stl], 'Quadrotor Path', 'Fixed-Wing Path', 'Ghost FW aeroplane');
         legend_added = true;
-    else
-        quiver3(x_quad(i,1), x_quad(i,2), -x_quad(i,3), gimbal_forward_vec(1), gimbal_forward_vec(2), -gimbal_forward_vec(3), 5, 'c', 'LineWidth', 2, 'HandleVisibility','off');
     end
 end
 light('Position',[1 0 0],'Style','infinite');
