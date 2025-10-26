@@ -3,7 +3,7 @@ clc;
 
 % Select the configuration file to use
 % 'loop', 'roll', or 'straight'
-config_to_run = 'immelman';
+config_to_run = 'loop';
 
 run(['trajectory_configs/config_' config_to_run '.m']);
 
@@ -84,7 +84,7 @@ legend_added_stl = false;
 V = V - mean(V); % Center the model
 V = V / 20;
 % Define a scaling factor for the model size
-model_scale = 0.7; % Adjust this value to make the model larger or smaller
+model_scale = 0.5; % Adjust this value to make the model larger or smaller
 V = V * model_scale;
 
 % Apply a corrective rotation to align the STL model with the body frame
@@ -109,6 +109,10 @@ V = (R_correction * V')';
 %              0 cos(roll_angle) -sin(roll_angle);
 %              0 sin(roll_angle) cos(roll_angle)];
 %V = (R_roll_180 * V')';
+
+% --- Create a filtered copy of gimbal angles for 3D plotting ---
+phi_g_for_3d = unwrap(quad_state(:, 14));
+theta_g_for_3d = unwrap(quad_state(:, 15));
 
 % Add vector plots for forward directions and the STL model
 for i = 1:8:length(t) % Plot every 50th point to avoid clutter
@@ -139,12 +143,13 @@ for i = 1:8:length(t) % Plot every 50th point to avoid clutter
               2*(q1*q2 + q0*q3), 1 - 2*(q1^2 + q3^2), 2*(q2*q3 - q0*q1);
               2*(q1*q3 - q0*q2), 2*(q2*q3 + q0*q1), 1 - 2*(q1^2 + q2^2)];
               
-    phi_g = quad_state(i, 14);
-    theta_g = quad_state(i, 15);
+    % Use filtered angles for 3D plot
+    phi_g_i = phi_g_for_3d(i);
+    theta_g_i = theta_g_for_3d(i);
     
     % Plot Gimbal body frame basis vectors
-    c_p = cos(phi_g); s_p = sin(phi_g);
-    c_t = cos(theta_g); s_t = sin(theta_g);
+    c_p = cos(phi_g_i); s_p = sin(phi_g_i);
+    c_t = cos(theta_g_i); s_t = sin(theta_g_i);
     
     R_gb = [ c_p*c_t, -s_p, c_p*s_t;
              s_p*c_t,  c_p, s_p*s_t;
@@ -188,10 +193,8 @@ phi_g = quad_state(:, 14);
 theta_g = quad_state(:, 15);
 
 % --- Calculate Reference Angles and Errors Post-Simulation ---
-phi_g_ref_history = zeros(length(t), 1);
-theta_g_ref_history = zeros(length(t), 1);
-last_phi_g_ref = 0; % Initialize for post-processing unwrapping
-last_theta_g_ref = 0;
+phi_g_ref_raw_history = zeros(length(t), 1);
+theta_g_ref_raw_history = zeros(length(t), 1);
 
 for i = 1:length(t)
     % Quadrotor orientation
@@ -201,8 +204,7 @@ for i = 1:length(t)
             2*(q1*q2+q0*q3), q0^2-q1^2+q2^2-q3^2, 2*(q2*q3-q0*q1);
             2*(q1*q3-q0*q2), 2*(q2*q3+q0*q1), q0^2-q1^2-q2^2+q3^2];
 
-    % The reference is the fixed-wing's velocity vector, which is already calculated
-    % for the quiver plot. We can reuse that.
+    % The reference is the fixed-wing's velocity vector
     q_fw_plot = fw_state(i, 7:10);
     R_fw_plot = [1 - 2*(q_fw_plot(3)^2 + q_fw_plot(4)^2), 2*(q_fw_plot(2)*q_fw_plot(3) - q_fw_plot(1)*q_fw_plot(4)), 2*(q_fw_plot(2)*q_fw_plot(4) + q_fw_plot(1)*q_fw_plot(3));
                  2*(q_fw_plot(2)*q_fw_plot(3) + q_fw_plot(1)*q_fw_plot(4)), 1 - 2*(q_fw_plot(2)^2 + q_fw_plot(4)^2), 2*(q_fw_plot(3)*q_fw_plot(4) - q_fw_plot(1)*q_fw_plot(2));
@@ -210,62 +212,38 @@ for i = 1:length(t)
     vel_body_plot = fw_state(i, 4:6)';
     fw_velocity_vec_w = R_fw_plot * (vel_body_plot / (norm(vel_body_plot) + 1e-9));
 
-    % Transform the fw velocity vector (our reference) to the quad's body frame
+    % Transform the fw velocity vector to the quad's body frame
     fw_forward_vec_b = R_bw' * fw_velocity_vec_w;
     
-    % --- Reference Angle Calculation with Singularity Avoidance ---
+    % --- Raw Reference Angle Calculation ---
     xy_norm = sqrt(fw_forward_vec_b(1)^2 + fw_forward_vec_b(2)^2);
-    
-    if i == 1
-        if xy_norm < 1e-6
-            last_phi_g_ref = 0;
-        else
-            last_phi_g_ref = atan2(fw_forward_vec_b(2), fw_forward_vec_b(1));
-        end
-        last_theta_g_ref = atan2(-fw_forward_vec_b(3), xy_norm + 1e-9);
-    end
-
-    if xy_norm < 1e-6
-        phi_g_ref = last_phi_g_ref;
-    else
-        phi_g_ref_raw = atan2(fw_forward_vec_b(2), fw_forward_vec_b(1));
-        delta_phi = phi_g_ref_raw - last_phi_g_ref;
-        delta_phi = mod(delta_phi + pi, 2*pi) - pi;
-        if abs(delta_phi) > (170 * pi / 180)
-            phi_g_ref = last_phi_g_ref;
-        else
-            phi_g_ref = last_phi_g_ref + delta_phi;
-        end
-    end
-    last_phi_g_ref = phi_g_ref;
-
-    theta_g_ref_raw = atan2(-fw_forward_vec_b(3), xy_norm + 1e-9);
-    delta_theta = theta_g_ref_raw - last_theta_g_ref;
-    delta_theta = mod(delta_theta + pi, 2*pi) - pi;
-    if abs(delta_theta) > (170 * pi / 180)
-        theta_g_ref = last_theta_g_ref;
-    else
-        theta_g_ref = last_theta_g_ref + delta_theta;
-    end
-    last_theta_g_ref = theta_g_ref;
-    
-    phi_g_ref_history(i) = phi_g_ref;
-    theta_g_ref_history(i) = theta_g_ref;
+    phi_g_ref_raw_history(i) = atan2(fw_forward_vec_b(2), fw_forward_vec_b(1));
+    theta_g_ref_raw_history(i) = atan2(-fw_forward_vec_b(3), xy_norm + 1e-9);
 end
 
-% Position Error
-error = x_fw - x_quad;
-figure('Name', 'Position Error', 'NumberTitle', 'off');
-plot(t, error(:,1), 'r', t, error(:,2), 'g', t, error(:,3), 'b');
-grid on;
-title('Position Tracking Error');
-xlabel('Time (s)');
-ylabel('Error (m)');
-legend('x error', 'y error', 'z error');
+% Filter the reference angles to remove jumps
+phi_g_ref_history = phi_g_ref_raw_history;
+theta_g_ref_history = theta_g_ref_raw_history;
+jump_threshold_ref = 1.0; % rad
+for i = 2:length(phi_g_ref_history)
+    if abs(phi_g_ref_history(i) - phi_g_ref_history(i-1)) > jump_threshold_ref
+        phi_g_ref_history(i) = phi_g_ref_history(i-1);
+    end
+    if abs(theta_g_ref_history(i) - theta_g_ref_history(i-1)) > jump_threshold_ref
+        theta_g_ref_history(i) = theta_g_ref_history(i-1);
+    end
+end
 
-% Gimbal Angles
-phi_g = quad_state(:, 14);
-theta_g = quad_state(:, 15);
+% --- Post-processing filter to remove jumps ---
+jump_threshold = 1.0; % rad
+for i = 2:length(phi_g)-1
+    if abs(phi_g(i) - phi_g(i-1)) > jump_threshold
+        phi_g(i) = phi_g(i-1);
+    end
+    if abs(theta_g(i) - theta_g(i-1)) > jump_threshold
+        theta_g(i) = theta_g(i-1);
+    end
+end
 
 % Plot Actual vs Reference
 fig3 = figure('Name', 'Gimbal Angles vs Reference', 'NumberTitle', 'off');
@@ -305,5 +283,104 @@ xlabel('Time (s)');
 ylabel('Error (rad)');
 legend('Pitch Error');
 saveas(fig4, 'results/gimbal_angle_errors.pdf');
+
+% --- World Frame Orientation Plot ---
+% Pre-allocate history arrays
+cam_roll_hist = zeros(length(t), 1);
+cam_pitch_hist = zeros(length(t), 1);
+cam_yaw_hist = zeros(length(t), 1);
+fw_roll_hist = zeros(length(t), 1);
+fw_pitch_hist = zeros(length(t), 1);
+fw_yaw_hist = zeros(length(t), 1);
+
+for i = 1:length(t)
+    % Quadrotor orientation
+    q_quad = quad_state(i, 4:7);
+    q0=q_quad(1); q1=q_quad(2); q2=q_quad(3); q3=q_quad(4);
+    R_quad = [1 - 2*(q2^2 + q3^2), 2*(q1*q2 - q0*q3), 2*(q1*q3 + q0*q2);
+              2*(q1*q2 + q0*q3), 1 - 2*(q1^2 + q3^2), 2*(q2*q3 - q0*q1);
+              2*(q1*q3 - q0*q2), 2*(q2*q3 + q0*q1), 1 - 2*(q1^2 + q2^2)];
+
+    % Gimbal orientation
+    phi_g_i = phi_g(i);
+    theta_g_i = theta_g(i);
+    c_p = cos(phi_g_i); s_p = sin(phi_g_i);
+    c_t = cos(theta_g_i); s_t = sin(theta_g_i);
+    R_gb = [ c_p*c_t, -s_p, c_p*s_t;
+             s_p*c_t,  c_p, s_p*s_t;
+                -s_t,    0,     c_t ];
+    
+    % Combined camera orientation in world frame
+    R_camera_world = R_quad * R_gb;
+    
+    % Convert camera rotation matrix to Euler angles
+    cam_roll_hist(i) = atan2(R_camera_world(3,2), R_camera_world(3,3));
+    cam_pitch_hist(i) = asin(-R_camera_world(3,1));
+    cam_yaw_hist(i) = atan2(R_camera_world(2,1), R_camera_world(1,1));
+
+    % Fixed-wing orientation
+    q_fw = fw_state(i, 7:10);
+    q0=q_fw(1); q1=q_fw(2); q2=q_fw(3); q3=q_fw(4);
+    R_fw = [1 - 2*(q2^2 + q3^2), 2*(q1*q2 - q0*q3), 2*(q1*q3 + q0*q2);
+            2*(q1*q2 + q0*q3), 1 - 2*(q1^2 + q3^2), 2*(q2*q3 - q0*q1);
+            2*(q1*q3 - q0*q2), 2*(q2*q3 + q0*q1), 1 - 2*(q1^2 + q2^2)];
+            
+    % Convert fixed-wing rotation matrix to Euler angles
+    fw_roll_hist(i) = atan2(R_fw(3,2), R_fw(3,3));
+    fw_pitch_hist(i) = asin(-R_fw(3,1));
+    fw_yaw_hist(i) = atan2(R_fw(2,1), R_fw(1,1));
+end
+
+% --- Filter World Frame Angles to Remove Jumps ---
+jump_threshold_world = 1.0; % rad
+for i = 2:length(t)
+    % Camera angles
+    if abs(cam_roll_hist(i) - cam_roll_hist(i-1)) > jump_threshold_world
+        cam_roll_hist(i) = cam_roll_hist(i-1);
+    end
+    if abs(cam_pitch_hist(i) - cam_pitch_hist(i-1)) > jump_threshold_world
+        cam_pitch_hist(i) = cam_pitch_hist(i-1);
+    end
+    if abs(cam_yaw_hist(i) - cam_yaw_hist(i-1)) > jump_threshold_world
+        cam_yaw_hist(i) = cam_yaw_hist(i-1);
+    end
+    % Fixed-wing angles
+    if abs(fw_roll_hist(i) - fw_roll_hist(i-1)) > jump_threshold_world
+        fw_roll_hist(i) = fw_roll_hist(i-1);
+    end
+    if abs(fw_pitch_hist(i) - fw_pitch_hist(i-1)) > jump_threshold_world
+        fw_pitch_hist(i) = fw_pitch_hist(i-1);
+    end
+    if abs(fw_yaw_hist(i) - fw_yaw_hist(i-1)) > jump_threshold_world
+        fw_yaw_hist(i) = fw_yaw_hist(i-1);
+    end
+end
+
+
+% Plot World Frame Orientations
+fig5 = figure('Name', 'World Frame Orientation', 'NumberTitle', 'off');
+subplot(3,1,1);
+plot(t, unwrap(cam_roll_hist), 'r', t, unwrap(fw_roll_hist), 'r--');
+grid on;
+title('Camera vs. Fixed-Wing Roll Angle (World Frame)');
+ylabel('Angle (rad)');
+legend('Camera', 'Fixed-Wing');
+
+subplot(3,1,2);
+plot(t, unwrap(cam_pitch_hist), 'g', t, unwrap(fw_pitch_hist), 'g--');
+grid on;
+title('Camera vs. Fixed-Wing Pitch Angle (World Frame)');
+ylabel('Angle (rad)');
+legend('Camera', 'Fixed-Wing');
+
+subplot(3,1,3);
+plot(t, unwrap(cam_yaw_hist), 'b', t, unwrap(fw_yaw_hist), 'b--');
+grid on;
+title('Camera vs. Fixed-Wing Yaw Angle (World Frame)');
+xlabel('Time (s)');
+ylabel('Angle (rad)');
+legend('Camera', 'Fixed-Wing');
+saveas(fig5, 'results/world_frame_orientation.pdf');
+
 
 disp('Real-time simulation and plotting complete.');

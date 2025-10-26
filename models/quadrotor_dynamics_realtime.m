@@ -52,70 +52,46 @@ vpsi = omega_b(1)*(2*q1*q3 - 2*q0*q2) + omega_b(2)*(2*q2*q3 + 2*q0*q1) + omega_b
 v_pos = sd - c3*(j - jd) - c2*(a_ - ad) - c1*(v_w - vd) - c0*(x_w - xd);
 v_yaw = 0 - c5*(vpsi - 0) - c4*(atan2(2*(q0*q3+q1*q2), 1-2*(q2^2+q3^2)) - psid);
 
-% Gimbal virtual control
-% The reference is the fixed-wing's velocity vector in the world frame.
-% However, the input `vd` to this function IS the fixed-wing's velocity vector.
-% So, we can use it directly.
-fw_forward_vec_w = vd / (norm(vd) + 1e-9); % Normalize to get a direction vector
+% --- Gimbal virtual control ---
+% The objective is to match the camera's world-frame orientation to the fixed-wing's world-frame orientation.
+% R_cam_w = R_bw * R_gb
+% We want R_cam_w = R_fw_w
+% So, R_bw * R_gb = R_fw_w
+% Which means the desired gimbal orientation is R_gb = R_bw' * R_fw_w
 
-% Transform the fixed-wing forward vector to the quadrotor's body frame
-fw_forward_vec_b = R_bw' * fw_forward_vec_w;
+% Get fixed-wing rotation matrix from its quaternion
+q_fw = fw_orientation;
+q0_fw=q_fw(1); q1_fw=q_fw(2); q2_fw=q_fw(3); q3_fw=q_fw(4);
+R_fw_w = [q0_fw^2+q1_fw^2-q2_fw^2-q3_fw^2, 2*(q1_fw*q2_fw-q0_fw*q3_fw), 2*(q1_fw*q3_fw+q0_fw*q2_fw);
+          2*(q1_fw*q2_fw+q0_fw*q3_fw), q0_fw^2-q1_fw^2+q2_fw^2-q3_fw^2, 2*(q2_fw*q3_fw-q0_fw*q1_fw);
+          2*(q1_fw*q3_fw-q0_fw*q2_fw), 2*(q2_fw*q3_fw+q0_fw*q1_fw), q0_fw^2-q1_fw^2-q2_fw^2+q3_fw^2];
 
-% --- Reference Angle Calculation with Singularity Avoidance ---
+% Calculate the desired gimbal rotation matrix
+R_gb_ref = R_bw' * R_fw_w;
 
-% Calculate projection on body XY plane
-xy_norm = sqrt(fw_forward_vec_b(1)^2 + fw_forward_vec_b(2)^2);
+% Extract Euler angles from the desired gimbal rotation matrix
+% R_gb = [ c_p*c_t, -s_p, c_p*s_t;
+%          s_p*c_t,  c_p, s_p*s_t;
+%             -s_t,    0,     c_t ];
+% From this, we can derive:
+% theta_g = asin(-R_gb(3,1))
+% phi_g = atan2(R_gb(2,1)/cos(theta_g), R_gb(1,1)/cos(theta_g)) -> atan2(R_gb(2,1), R_gb(1,1))
+% Note: This assumes a specific Euler angle sequence (e.g., ZYX), which matches the gimbal model.
 
-% Initialize persistent variables on first run
-if isempty(last_phi_g_ref)
-    if xy_norm < 1e-6
-        last_phi_g_ref = 0; % Default to 0 if starting in singularity
-    else
-        last_phi_g_ref = atan2(fw_forward_vec_b(2), fw_forward_vec_b(1));
-    end
-    last_theta_g_ref = atan2(-fw_forward_vec_b(3), xy_norm + 1e-9);
-end
+phi_g_ref_kinematic = atan2(R_gb_ref(2,1), R_gb_ref(1,1));
+theta_g_ref_kinematic = asin(-R_gb_ref(3,1));
 
-% Check for singularity (gimbal lock)
-if xy_norm < 1e-6
-    % In singularity, phi is ill-defined. Hold the last known value.
-    phi_g_ref = last_phi_g_ref;
+% --- Generate the reference for the controller ---
+% Ramp the reference from 0 to the kinematic reference over the first 0.5s
+ramp_time = 0.5;
+if t < ramp_time
+    ramp_factor = t / ramp_time;
+    phi_g_ref = ramp_factor * phi_g_ref_kinematic;
+    theta_g_ref = ramp_factor * theta_g_ref_kinematic;
 else
-    % Calculate raw angle
-    phi_g_ref_raw = atan2(fw_forward_vec_b(2), fw_forward_vec_b(1));
-    
-    % Robust angle unwrapping with jump rejection
-    delta_phi = phi_g_ref_raw - last_phi_g_ref;
-
-    % Wrap to [-pi, pi]
-    delta_phi = mod(delta_phi + pi, 2*pi) - pi;
-
-    % Reject large jumps
-    if abs(delta_phi) > (170 * pi / 180)
-        phi_g_ref = last_phi_g_ref;
-    else
-        phi_g_ref = last_phi_g_ref + delta_phi;
-    end
+    phi_g_ref = phi_g_ref_kinematic;
+    theta_g_ref = theta_g_ref_kinematic;
 end
-
-% Update persistent variable for next time step
-last_phi_g_ref = phi_g_ref;
-
-% Calculate theta reference (pitch) with robust unwrapping and jump rejection
-theta_g_ref_raw = atan2(-fw_forward_vec_b(3), xy_norm + 1e-9);
-delta_theta = theta_g_ref_raw - last_theta_g_ref;
-
-% Wrap to [-pi, pi]
-delta_theta = mod(delta_theta + pi, 2*pi) - pi;
-
-% Reject large jumps
-if abs(delta_theta) > (170 * pi / 180)
-    theta_g_ref = last_theta_g_ref;
-else
-    theta_g_ref = last_theta_g_ref + delta_theta;
-end
-
-last_theta_g_ref = theta_g_ref;
 
 % Virtual control for gimbal (first-order system)
 v_phi = -c_phi * (phi_g - phi_g_ref);
