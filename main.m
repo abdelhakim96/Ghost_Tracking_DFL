@@ -3,7 +3,7 @@ clc;
 
 % Select the configuration file to use
 % 'loop', 'roll', or 'straight'
-config_to_run = 'roll';
+config_to_run = 'immelman';
 
 run(['trajectory_configs/config_' config_to_run '.m']);
 
@@ -32,7 +32,7 @@ fw_x0 = fw_initial.x0;
 
 % Quadrotor
 % Start the quadrotor at the same position and velocity as the fixed-wing for a smoother start.
-x0_quad = fw_x0(1) -0.01; y0_quad = fw_x0(2) -0.001 ; z0_quad = fw_x0(3)-0.001;
+x0_quad = fw_x0(1) -0.1; y0_quad = fw_x0(2) -0.001 ; z0_quad = fw_x0(3)-0.001;
 q0_quad = 1; q1_quad = 0; q2_quad = 0; q3_quad = 0;
 u0_quad = fw_initial.u0; v0_quad = fw_initial.v0; w0_quad = fw_initial.w0;
 p_quad = 0; q_quad = 0; r_quad = 0;
@@ -111,7 +111,7 @@ V = (R_correction * V')';
 %V = (R_roll_180 * V')';
 
 % Add vector plots for forward directions and the STL model
-for i = 1:10:length(t) % Plot every 50th point to avoid clutter
+for i = 1:8:length(t) % Plot every 50th point to avoid clutter
     % Fixed-wing position and orientation
     pos_fw = [x_fw(i,1), x_fw(i,2), -x_fw(i,3)];
     q_fw = fw_state(i, 7:10); % [q0, q1, q2, q3]
