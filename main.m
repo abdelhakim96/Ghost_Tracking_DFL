@@ -132,16 +132,6 @@ for i = 1:8:length(t) % Plot every 50th point to avoid clutter
         patch('Faces', F, 'Vertices', V_translated, 'FaceColor', [0.8 0.2 0.2], 'EdgeColor', 'none', 'FaceLighting', 'gouraud', 'FaceAlpha', 0.1, 'HandleVisibility','off');
     end
 
-    % Plot FW body frame basis vectors
-    scale = 5; % Scaling factor for the vectors
-    body_x = R_fw(:,1) * scale;
-    body_y = R_fw(:,2) * scale;
-    body_z = R_fw(:,3) * scale;
-
-    quiver3(pos_fw(1), pos_fw(2), pos_fw(3), body_x(1), body_x(2), -body_x(3), 'r', 'LineWidth', 1, 'HandleVisibility','off');
-    quiver3(pos_fw(1), pos_fw(2), pos_fw(3), body_y(1), body_y(2), -body_y(3), 'g', 'LineWidth', 1, 'HandleVisibility','off');
-    quiver3(pos_fw(1), pos_fw(2), pos_fw(3), body_z(1), body_z(2), -body_z(3), 'b', 'LineWidth', 1, 'HandleVisibility','off');
-
     % Gimbal forward vector (actual pointing direction)
     q_quad = quad_state(i, 4:7); % [q0, q1, q2, q3]
     q0=q_quad(1); q1=q_quad(2); q2=q_quad(3); q3=q_quad(4);
@@ -151,6 +141,26 @@ for i = 1:8:length(t) % Plot every 50th point to avoid clutter
               
     phi_g = quad_state(i, 14);
     theta_g = quad_state(i, 15);
+    
+    % Plot Gimbal body frame basis vectors
+    c_p = cos(phi_g); s_p = sin(phi_g);
+    c_t = cos(theta_g); s_t = sin(theta_g);
+    
+    R_gb = [ c_p*c_t, -s_p, c_p*s_t;
+             s_p*c_t,  c_p, s_p*s_t;
+                -s_t,    0,     c_t ];
+    
+    R_gimbal_world = R_quad * R_gb;
+    
+    pos_quad = [x_quad(i,1), x_quad(i,2), -x_quad(i,3)];
+    scale_gimbal = 3; % Scaling factor for the vectors
+    gimbal_x = R_gimbal_world(:,1) * scale_gimbal;
+    gimbal_y = R_gimbal_world(:,2) * scale_gimbal;
+    gimbal_z = R_gimbal_world(:,3) * scale_gimbal;
+
+    quiver3(pos_quad(1), pos_quad(2), pos_quad(3), gimbal_x(1), gimbal_x(2), -gimbal_x(3), 'm', 'LineWidth', 1, 'HandleVisibility','off'); % Magenta for x
+    quiver3(pos_quad(1), pos_quad(2), pos_quad(3), gimbal_y(1), gimbal_y(2), -gimbal_y(3), 'y', 'LineWidth', 1, 'HandleVisibility','off'); % Yellow for y
+    quiver3(pos_quad(1), pos_quad(2), pos_quad(3), gimbal_z(1), gimbal_z(2), -gimbal_z(3), 'k', 'LineWidth', 1, 'HandleVisibility','off'); % Black for z
     % Reconstruct gimbal pointing vector in body frame from gimbal angles
     % Assumes gimbal is mounted forwards
     gimbal_vec_body = [cos(theta_g)*cos(phi_g); cos(theta_g)*sin(phi_g); -sin(theta_g)];
