@@ -42,7 +42,7 @@ R_gb = [cos(phi_g)*cos(theta_g), -sin(phi_g), cos(phi_g)*sin(theta_g);
        -sin(theta_g),                 0,       cos(theta_g)];
 R_gimbal_w = R_bw * R_gb;
 gimbal_global_roll = atan2(R_gimbal_w(3,2), R_gimbal_w(3,3));
-fprintf('Gimbal Local Roll Angle (phi_g): %f, Gimbal Global Roll Angle: %f\n', phi_g, gimbal_global_roll);
+%fprintf('Gimbal Local Roll Angle (phi_g): %f, Gimbal Global Roll Angle: %f\n', phi_g, gimbal_global_roll);
 
 % Call the controller to get the control input u
 u = dfl_controller(t, state, xd, vd, ad, jd, sd, psid, fw_state, dfl_gains);

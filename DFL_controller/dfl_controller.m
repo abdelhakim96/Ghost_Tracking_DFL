@@ -95,12 +95,17 @@ R_fw_w = [q0_fw^2+q1_fw^2-q2_fw^2-q3_fw^2, 2*(q1_fw*q2_fw-q0_fw*q3_fw), 2*(q1_fw
           2*(q1_fw*q2_fw+q0_fw*q3_fw), q0_fw^2-q1_fw^2+q2_fw^2-q3_fw^2, 2*(q2_fw*q3_fw-q0_fw*q1_fw);
           2*(q1_fw*q3_fw-q0_fw*q2_fw), 2*(q2_fw*q3_fw+q0_fw*q1_fw), q0_fw^2-q1_fw^2-q2_fw^2+q3_fw^2];
 
-% Calculate the desired gimbal orientation relative to the quadrotor body
-R_gb_ref = R_bw' * R_fw_w;
+% Calculate global Euler angles for the drone
+drone_roll = atan2(2*(q0*q1 + q2*q3), 1 - 2*(q1^2 + q2^2));
+drone_pitch = asin(2*(q0*q2 - q3*q1));
 
-% Extract gimbal roll and pitch from the desired rotation matrix
-phi_g_ref_raw = atan2(R_gb_ref(3,2), R_gb_ref(3,3));
-theta_g_ref_raw = asin(-R_gb_ref(3,1));
+% Calculate the error between fixed-wing and drone global angles
+roll_error = fw_roll - drone_roll;
+pitch_error = fw_pitch - drone_pitch;
+
+% The gimbal's reference angles are the errors
+phi_g_ref_raw = roll_error;
+theta_g_ref_raw = pitch_error;
 
 % --- Reference Angle Unwrapping and Singularity Avoidance ---
 if isempty(last_phi_g_ref)
