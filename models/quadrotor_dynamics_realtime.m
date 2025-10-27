@@ -1,8 +1,8 @@
 function state_dot = quadrotor_dynamics_realtime(t, state, xd, vd, ad, jd, sd, psid, fw_state, dfl_gains)
-% This function defines the dynamics of the quadrotor using a DFL controller
-% with a first-order gimbal model.
+% This function defines the dynamics of the quadrotor.
+% The controller is now in a separate file: DFL_controller/dfl_controller.m
 
-persistent last_phi_g_ref last_theta_g_ref last_t history;
+persistent history;
 
 % Special case to retrieve history
 if ischar(t) && strcmp(t, 'get_history')
@@ -11,9 +11,6 @@ if ischar(t) && strcmp(t, 'get_history')
 end
 
 if t == 0 % Reset persistent variables at the start of the simulation
-    last_phi_g_ref = [];
-    last_theta_g_ref = [];
-    last_t = 0;
     history = [];
 end
 
@@ -30,20 +27,6 @@ theta_g = state(15);    % Gimbal pitch
 zeta = state(16);       % Total thrust
 xi = state(17);         % Derivative of total thrust
 
-% Controller gains for the main body
-c0 = dfl_gains.c0;  % Position gain
-c1 = dfl_gains.c1;  % Velocity gain
-c2 = dfl_gains.c2;   % Acceleration gain
-c3 = dfl_gains.c3;    % Jerk gain
-c4 = dfl_gains.c4;   % Yaw gain
-c5 = dfl_gains.c5;    % Yaw rate gain
-
-% Gains for the virtual controller of the first-order gimbal
-c_phi = dfl_gains.c_phi;      % Proportional gain for gimbal roll
-c_theta = dfl_gains.c_theta;    % Proportional gain for gimbal pitch
-c_ff_phi = dfl_gains.c_ff_phi;    % Feedforward gain for gimbal roll
-c_ff_theta = dfl_gains.c_ff_theta;% Feedforward gain for gimbal pitch
-
 % Normalize the quaternion
 q_bw = q_bw / (norm(q_bw) + 1e-9);
 q0=q_bw(1); q1=q_bw(2); q2=q_bw(3); q3=q_bw(4);
@@ -53,124 +36,20 @@ R_bw = [q0^2+q1^2-q2^2-q3^2, 2*(q1*q2-q0*q3), 2*(q1*q3+q0*q2);
         2*(q1*q2+q0*q3), q0^2-q1^2+q2^2-q3^2, 2*(q2*q3-q0*q1);
         2*(q1*q3-q0*q2), 2*(q2*q3+q0*q1), q0^2-q1^2-q2^2+q3^2];
 
+% Calculate gimbal's orientation in world frame for debugging
+R_gb = [cos(phi_g)*cos(theta_g), -sin(phi_g), cos(phi_g)*sin(theta_g);
+        sin(phi_g)*cos(theta_g),  cos(phi_g), sin(phi_g)*sin(theta_g);
+       -sin(theta_g),                 0,       cos(theta_g)];
+R_gimbal_w = R_bw * R_gb;
+gimbal_global_roll = atan2(R_gimbal_w(3,2), R_gimbal_w(3,3));
+fprintf('Gimbal Local Roll Angle (phi_g): %f, Gimbal Global Roll Angle: %f\n', phi_g, gimbal_global_roll);
+
+% Call the controller to get the control input u
+u = dfl_controller(t, state, xd, vd, ad, jd, sd, psid, fw_state, dfl_gains);
+
 % Dynamics
 F_thrust = R_bw * [0; 0; zeta];
 a_ = (F_thrust/m) - [0; 0; g];
-j = (zeta*(R_bw(:,1)*omega_b(2) - R_bw(:,2)*omega_b(1)) + R_bw(:,3)*xi)/m;
-vpsi = omega_b(1)*(2*q1*q3 - 2*q0*q2) + omega_b(2)*(2*q2*q3 + 2*q0*q1) + omega_b(3)*(q0^2 - q1^2 - q2^2 + q3^2);
-
-% Virtual control input
-v_pos = sd - c3*(j - jd) - c2*(a_ - ad) - c1*(v_w - vd) - c0*(x_w - xd);
-v_yaw = 0 - c5*(vpsi - 0) - c4*(atan2(2*(q0*q3+q1*q2), 1-2*(q2^2+q3^2)) - psid);
-
-% Gimbal virtual control
-% --- UPDATED: Drone follows FW yaw, Gimbal follows FW roll/pitch ---
-% Strategy:
-% 1. Quadrotor yaw (psid) tracks fixed-wing yaw
-% 2. Gimbal (phi_g, theta_g) tracks fixed-wing roll and pitch relative to quadrotor body
-
-% Extract fixed-wing Euler angles (roll, pitch, yaw) from quaternion
-fw_orientation = fw_state(7:10);
-q_fw = fw_orientation / (norm(fw_orientation) + 1e-9);
-q0_fw=q_fw(1); q1_fw=q_fw(2); q2_fw=q_fw(3); q3_fw=q_fw(4);
-
-% Fixed-wing Euler angles (ZYX convention)
-fw_roll = atan2(2*(q0_fw*q1_fw + q2_fw*q3_fw), 1 - 2*(q1_fw^2 + q2_fw^2));
-fw_pitch = asin(2*(q0_fw*q2_fw - q3_fw*q1_fw));
-fw_yaw = atan2(2*(q0_fw*q3_fw + q1_fw*q2_fw), 1 - 2*(q2_fw^2 + q3_fw^2));
-
-% Update the desired yaw for the quadrotor to track fixed-wing yaw
-psid = fw_yaw;
-
-% For the gimbal: if the quadrotor were perfectly tracking fw_yaw,
-% then the gimbal should track the remaining roll/pitch in the body frame.
-% Since there may be yaw tracking error, we compute the relative orientation.
-
-% Build rotation matrix for fixed-wing
-R_fw_w = [q0_fw^2+q1_fw^2-q2_fw^2-q3_fw^2, 2*(q1_fw*q2_fw-q0_fw*q3_fw), 2*(q1_fw*q3_fw+q0_fw*q2_fw);
-          2*(q1_fw*q2_fw+q0_fw*q3_fw), q0_fw^2-q1_fw^2+q2_fw^2-q3_fw^2, 2*(q2_fw*q3_fw-q0_fw*q1_fw);
-          2*(q1_fw*q3_fw-q0_fw*q2_fw), 2*(q2_fw*q3_fw+q0_fw*q1_fw), q0_fw^2-q1_fw^2-q2_fw^2+q3_fw^2];
-
-% Calculate the desired gimbal orientation relative to the quadrotor body
-% R_gb_ref represents how the gimbal should be oriented in the body frame
-% to align with the fixed-wing's orientation
-R_gb_ref = R_bw' * R_fw_w;
-
-% Extract gimbal roll and pitch from the desired rotation matrix.
-% Using ZYX Euler convention: R = Rz(phi) * Ry(theta) * Rx(psi)
-% For a 2-DOF gimbal controlling roll and pitch:
-% phi_g corresponds to roll (rotation about x-axis in gimbal frame)
-% theta_g corresponds to pitch (rotation about y-axis in gimbal frame)
-
-% Extract roll (phi) and pitch (theta) from rotation matrix
-% Standard ZYX extraction:
-phi_g_ref_raw = atan2(R_gb_ref(3,2), R_gb_ref(3,3));
-theta_g_ref_raw = asin(-R_gb_ref(3,1));
-
-% --- Reference Angle Unwrapping and Singularity Avoidance ---
-% Initialize persistent variables on first run
-if isempty(last_phi_g_ref)
-    last_phi_g_ref = phi_g_ref_raw;
-    last_theta_g_ref = theta_g_ref_raw;
-end
-
-% Robust angle unwrapping with jump rejection for phi_g (roll)
-delta_phi = phi_g_ref_raw - last_phi_g_ref;
-% Wrap to [-pi, pi]
-delta_phi = mod(delta_phi + pi, 2*pi) - pi;
-% Reject large jumps (e.g., near singularity)
-if abs(delta_phi) > (170 * pi / 180)
-    phi_g_ref = last_phi_g_ref;
-else
-    phi_g_ref = last_phi_g_ref + delta_phi;
-end
-
-% --- Feedforward Calculation ---
-dt = t - last_t;
-if dt > 1e-6 % Avoid division by zero at the start or with repeated time steps
-    phi_g_ref_dot = (phi_g_ref - last_phi_g_ref) / dt;
-else
-    phi_g_ref_dot = 0;
-end
-last_phi_g_ref = phi_g_ref; % NOW update for the next iteration
-
-% Robust angle unwrapping with jump rejection for theta_g (pitch)
-delta_theta = theta_g_ref_raw - last_theta_g_ref;
-% Wrap to [-pi, pi]
-delta_theta = mod(delta_theta + pi, 2*pi) - pi;
-% Reject large jumps
-if abs(delta_theta) > (170 * pi / 180)
-    theta_g_ref = last_theta_g_ref;
-else
-    theta_g_ref = last_theta_g_ref + delta_theta;
-end
-
-% --- Feedforward Calculation ---
-if dt > 1e-6 % Avoid division by zero at the start or with repeated time steps
-    theta_g_ref_dot = (theta_g_ref - last_theta_g_ref) / dt;
-else
-    theta_g_ref_dot = 0;
-end
-last_theta_g_ref = theta_g_ref; % NOW update for the next iteration
-last_t = t;
-
-% Virtual control for gimbal with feedforward
-v_phi = -c_phi * (phi_g - phi_g_ref) + c_ff_phi * phi_g_ref_dot;
-v_theta = -c_theta * (theta_g - theta_g_ref) + c_ff_theta * theta_g_ref_dot;
-
-% Combined virtual control vector
-v = [v_pos; v_yaw; v_phi; v_theta];
-
-% Gimbal parameters (aerodynamics, inertia not used in 1st order model)
-Ag_p = 0.01;
-Ag_q = 0.01;
-Ig_x = 0.001; % Kept for function signature compatibility
-Ig_y = 0.001; % Kept for function signature compatibility
-
-% Feedback linearization using the newly generated functions
-alpha_val = alpha_gimbal_func(state, 0, 0, 0, Ag_p, Ag_q, Ix, Iy, Iz, Ig_x, Ig_y, zeta, xi, m);
-beta_val = beta_gimbal_func(state, 0, 0, 0, Ag_p, Ag_q, Ix, Iy, Iz, Ig_x, Ig_y, zeta, xi, m);
-u = alpha_val + beta_val * v;
 
 % State Derivatives
 x_dot = v_w;
@@ -198,6 +77,6 @@ state_dot(16) = zeta_dot;
 state_dot(17) = xi_dot;
 
 % Store history
-history(end+1, :) = [t, zeta, u(2), u(3), u(4), omega_b', u(5), u(6)];
+history(end+1, :) = [t, zeta, u(2), u(3), u(4), omega_b', u(5), u(6), gimbal_global_roll];
 
 end
