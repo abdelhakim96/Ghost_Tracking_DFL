@@ -4,7 +4,7 @@ clc;
 
 % Select the configuration file to use
 % 'loop', 'roll', or 'straight'
-config_to_run = 'loop';
+config_to_run = 'straight';
 
 run(['trajectory_configs/config_' config_to_run '.m']);
 
@@ -458,6 +458,36 @@ xlabel('Time (s)');
 ylabel('rad/s');
 
 saveas(fig_control_inputs, 'results/control_inputs.pdf');
+
+% --- New Drone State Plot ---
+fig_drone_state = figure('Name', 'Drone State vs Time', 'NumberTitle', 'off');
+set(fig_drone_state, 'Position', [100, 100, 800, 600]); % Adjust figure size
+
+% Drone Position
+subplot(2,1,1);
+plot(t, x_quad(:,1), 'r', 'LineWidth', 1.5);
+hold on;
+plot(t, x_quad(:,2), 'g', 'LineWidth', 1.5);
+plot(t, -x_quad(:,3), 'b', 'LineWidth', 1.5);
+grid on;
+title('Drone Position vs Time');
+xlabel('Time (s)');
+ylabel('Position (m)');
+legend('x (North)', 'y (East)', 'z (Altitude)');
+
+% Drone Orientation
+subplot(2,1,2);
+plot(t, gimbal_global_roll_hist * 180/pi, 'r', 'LineWidth', 1.5);
+hold on;
+plot(t, gimbal_global_pitch_hist * 180/pi, 'g', 'LineWidth', 1.5);
+plot(t, gimbal_global_yaw_hist * 180/pi, 'b', 'LineWidth', 1.5);
+grid on;
+title('Drone Orientation vs Time');
+xlabel('Time (s)');
+ylabel('Angle (degrees)');
+legend('Roll', 'Pitch', 'Yaw');
+
+saveas(fig_drone_state, 'results/drone_state.pdf');
 
 
 disp('Real-time simulation and plotting complete.');

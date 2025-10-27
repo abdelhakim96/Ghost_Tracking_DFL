@@ -64,28 +64,48 @@ v_pos = sd - c3*(j - jd) - c2*(a_ - ad) - c1*(v_w - vd) - c0*(x_w - xd);
 v_yaw = 0 - c5*(vpsi - 0) - c4*(atan2(2*(q0*q3+q1*q2), 1-2*(q2^2+q3^2)) - psid);
 
 % Gimbal virtual control
-% --- NEW: Full Orientation Tracking ---
-% The reference is the fixed-wing's full 3D orientation.
-% We want the gimbal's world orientation to match the fixed-wing's world orientation.
-% R_gimbal_w = R_bw * R_gb  should equal R_fw_w
-% So, the desired gimbal orientation in the body frame is R_gb_ref = R_bw' * R_fw_w
+% --- UPDATED: Drone follows FW yaw, Gimbal follows FW roll/pitch ---
+% Strategy:
+% 1. Quadrotor yaw (psid) tracks fixed-wing yaw
+% 2. Gimbal (phi_g, theta_g) tracks fixed-wing roll and pitch relative to quadrotor body
 
-% Convert fixed-wing quaternion to rotation matrix
+% Extract fixed-wing Euler angles (roll, pitch, yaw) from quaternion
 fw_orientation = fw_state(7:10);
 q_fw = fw_orientation / (norm(fw_orientation) + 1e-9);
 q0_fw=q_fw(1); q1_fw=q_fw(2); q2_fw=q_fw(3); q3_fw=q_fw(4);
+
+% Fixed-wing Euler angles (ZYX convention)
+fw_roll = atan2(2*(q0_fw*q1_fw + q2_fw*q3_fw), 1 - 2*(q1_fw^2 + q2_fw^2));
+fw_pitch = asin(2*(q0_fw*q2_fw - q3_fw*q1_fw));
+fw_yaw = atan2(2*(q0_fw*q3_fw + q1_fw*q2_fw), 1 - 2*(q2_fw^2 + q3_fw^2));
+
+% Update the desired yaw for the quadrotor to track fixed-wing yaw
+psid = fw_yaw;
+
+% For the gimbal: if the quadrotor were perfectly tracking fw_yaw,
+% then the gimbal should track the remaining roll/pitch in the body frame.
+% Since there may be yaw tracking error, we compute the relative orientation.
+
+% Build rotation matrix for fixed-wing
 R_fw_w = [q0_fw^2+q1_fw^2-q2_fw^2-q3_fw^2, 2*(q1_fw*q2_fw-q0_fw*q3_fw), 2*(q1_fw*q3_fw+q0_fw*q2_fw);
           2*(q1_fw*q2_fw+q0_fw*q3_fw), q0_fw^2-q1_fw^2+q2_fw^2-q3_fw^2, 2*(q2_fw*q3_fw-q0_fw*q1_fw);
           2*(q1_fw*q3_fw-q0_fw*q2_fw), 2*(q2_fw*q3_fw+q0_fw*q1_fw), q0_fw^2-q1_fw^2-q2_fw^2+q3_fw^2];
 
 % Calculate the desired gimbal orientation relative to the quadrotor body
+% R_gb_ref represents how the gimbal should be oriented in the body frame
+% to align with the fixed-wing's orientation
 R_gb_ref = R_bw' * R_fw_w;
 
-% Extract gimbal angles from the desired rotation matrix.
-% This assumes a Z-Y rotation sequence for the gimbal (phi_g is yaw, theta_g is pitch)
-% which matches the kinematics used to generate the pointing vector previously.
+% Extract gimbal roll and pitch from the desired rotation matrix.
+% Using ZYX Euler convention: R = Rz(phi) * Ry(theta) * Rx(psi)
+% For a 2-DOF gimbal controlling roll and pitch:
+% phi_g corresponds to roll (rotation about x-axis in gimbal frame)
+% theta_g corresponds to pitch (rotation about y-axis in gimbal frame)
+
+% Extract roll (phi) and pitch (theta) from rotation matrix
+% Standard ZYX extraction:
+phi_g_ref_raw = atan2(R_gb_ref(3,2), R_gb_ref(3,3));
 theta_g_ref_raw = asin(-R_gb_ref(3,1));
-phi_g_ref_raw = atan2(R_gb_ref(2,1), R_gb_ref(1,1));
 
 % --- Reference Angle Unwrapping and Singularity Avoidance ---
 % Initialize persistent variables on first run
@@ -94,7 +114,7 @@ if isempty(last_phi_g_ref)
     last_theta_g_ref = theta_g_ref_raw;
 end
 
-% Robust angle unwrapping with jump rejection for phi_g (yaw-like angle)
+% Robust angle unwrapping with jump rejection for phi_g (roll)
 delta_phi = phi_g_ref_raw - last_phi_g_ref;
 % Wrap to [-pi, pi]
 delta_phi = mod(delta_phi + pi, 2*pi) - pi;
@@ -104,6 +124,7 @@ if abs(delta_phi) > (170 * pi / 180)
 else
     phi_g_ref = last_phi_g_ref + delta_phi;
 end
+
 % --- Feedforward Calculation ---
 dt = t - last_t;
 if dt > 1e-6 % Avoid division by zero at the start or with repeated time steps
@@ -113,7 +134,7 @@ else
 end
 last_phi_g_ref = phi_g_ref; % NOW update for the next iteration
 
-% Robust angle unwrapping with jump rejection for theta_g (pitch-like angle)
+% Robust angle unwrapping with jump rejection for theta_g (pitch)
 delta_theta = theta_g_ref_raw - last_theta_g_ref;
 % Wrap to [-pi, pi]
 delta_theta = mod(delta_theta + pi, 2*pi) - pi;
