@@ -120,14 +120,8 @@ if isempty(last_phi_g_ref)
     last_theta_g_ref = theta_g_ref_raw;
 end
 
-% Robust angle unwrapping with jump rejection for phi_g (roll)
-delta_phi = phi_g_ref_raw - last_phi_g_ref;
-delta_phi = mod(delta_phi + pi, 2*pi) - pi;
-if abs(delta_phi) > (170 * pi / 180)
-    phi_g_ref = last_phi_g_ref;
-else
-    phi_g_ref = last_phi_g_ref + delta_phi;
-end
+% Use the utility function to unwrap the gimbal roll reference angle
+phi_g_ref = unwrapAngle(phi_g_ref_raw, last_phi_g_ref);
 
 dt = t - last_t;
 if dt > 1e-6
@@ -137,14 +131,8 @@ else
 end
 last_phi_g_ref = phi_g_ref;
 
-% Robust angle unwrapping with jump rejection for theta_g (pitch)
-delta_theta = theta_g_ref_raw - last_theta_g_ref;
-delta_theta = mod(delta_theta + pi, 2*pi) - pi;
-if abs(delta_theta) > (170 * pi / 180)
-    theta_g_ref = last_theta_g_ref;
-else
-    theta_g_ref = last_theta_g_ref + delta_theta;
-end
+% Use the utility function to unwrap the gimbal pitch reference angle
+theta_g_ref = unwrapAngle(theta_g_ref_raw, last_theta_g_ref);
 
 if dt > 1e-6
     theta_g_ref_dot = (theta_g_ref - last_theta_g_ref) / dt;

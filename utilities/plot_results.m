@@ -134,6 +134,11 @@ drone_global_roll_hist = zeros(length(t), 1);
 drone_global_pitch_hist = zeros(length(t), 1);
 last_phi_g_ref = 0; last_theta_g_ref = 0;
 
+% Initialize last angles for unwrapping
+last_gimbal_roll = 0;
+last_gimbal_pitch = 0;
+last_gimbal_yaw = 0;
+
 for i = 1:length(t)
     % Quaternion to Euler and reference calculations (unchanged)
     q_bw = quad_state(i, 4:7);
@@ -157,9 +162,21 @@ for i = 1:length(t)
            -sin(theta_g_actual),                 0,                cos(theta_g_actual)];
     R_gimbal_w = R_bw * R_gb;
 
-    gimbal_global_yaw_hist(i) = atan2(R_gimbal_w(2,1), R_gimbal_w(1,1));
-    gimbal_global_pitch_hist(i) = asin(-R_gimbal_w(3,1));
-    gimbal_global_roll_hist(i) = atan2(R_gimbal_w(3,2), R_gimbal_w(3,3));
+    % Calculate raw angles
+    raw_yaw = atan2(R_gimbal_w(2,1), R_gimbal_w(1,1));
+    raw_pitch = asin(-R_gimbal_w(3,1));
+    raw_roll = atan2(R_gimbal_w(3,2), R_gimbal_w(3,3));
+
+    % Unwrap angles for smooth plotting
+    gimbal_global_yaw_hist(i) = unwrapAngle(raw_yaw, last_gimbal_yaw);
+    gimbal_global_pitch_hist(i) = unwrapAngle(raw_pitch, last_gimbal_pitch);
+    gimbal_global_roll_hist(i) = unwrapAngle(raw_roll, last_gimbal_roll);
+
+    % Update last angles
+    last_gimbal_yaw = gimbal_global_yaw_hist(i);
+    last_gimbal_pitch = gimbal_global_pitch_hist(i);
+    last_gimbal_roll = gimbal_global_roll_hist(i);
+
     fw_global_yaw_hist(i) = atan2(R_fw_w(2,1), R_fw_w(1,1));
     fw_global_pitch_hist(i) = asin(-R_fw_w(3,1));
     fw_global_roll_hist(i) = atan2(R_fw_w(3,2), R_fw_w(3,3));
