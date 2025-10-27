@@ -32,13 +32,21 @@ Ar = quad_params.Ar;
 fw_x0 = fw_initial.x0;
 
 % Quadrotor
-% Start the quadrotor at the same position and velocity as the fixed-wing for a smoother start.
-x0_quad = fw_x0(1) -0.01; y0_quad = fw_x0(2) -0.001 ; z0_quad = fw_x0(3)-0.001;
-q0_quad = 1; q1_quad = 0; q2_quad = 0; q3_quad = 0;
-u0_quad = fw_initial.u0; v0_quad = fw_initial.v0; w0_quad = fw_initial.w0;
-p_quad = 0; q_quad = 0; r_quad = 0;
+x0_quad = quad_initial.pos(1); y0_quad = quad_initial.pos(2); z0_quad = quad_initial.pos(3);
+u0_quad = quad_initial.vel(1); v0_quad = quad_initial.vel(2); w0_quad = quad_initial.vel(3);
+p_quad = quad_initial.ang_vel(1); q_quad = quad_initial.ang_vel(2); r_quad = quad_initial.ang_vel(3);
+
+% Convert initial Euler angles to quaternions
+phi = quad_initial.angle(1);
+theta = quad_initial.angle(2);
+psi = quad_initial.angle(3);
+q0_quad = cos(psi/2)*cos(theta/2)*cos(phi/2) + sin(psi/2)*sin(theta/2)*sin(phi/2);
+q1_quad = cos(psi/2)*cos(theta/2)*sin(phi/2) - sin(psi/2)*sin(theta/2)*cos(phi/2);
+q2_quad = cos(psi/2)*sin(theta/2)*cos(phi/2) + sin(psi/2)*cos(theta/2)*sin(phi/2);
+q3_quad = sin(psi/2)*cos(theta/2)*cos(phi/2) - cos(psi/2)*sin(theta/2)*sin(phi/2);
+
 zeta = quad_params.m*quad_params.g; xi = 0;
-phi_g = 0; theta_g = 0;
+phi_g = quad_initial.relative_angle(1); theta_g = quad_initial.relative_angle(2);
 % phi_g_dot and theta_g_dot are no longer states
 quad_initial_state = [x0_quad; y0_quad; z0_quad; q0_quad; q1_quad; q2_quad; q3_quad; u0_quad; v0_quad; w0_quad; p_quad; q_quad; r_quad; phi_g; theta_g; zeta; xi];
 
