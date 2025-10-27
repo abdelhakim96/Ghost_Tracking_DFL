@@ -1,9 +1,10 @@
+%% 
 clear all;
 clc;
 
 % Select the configuration file to use
 % 'loop', 'roll', or 'straight'
-config_to_run = 'roll';
+config_to_run = 'loop';
 
 run(['trajectory_configs/config_' config_to_run '.m']);
 
@@ -132,17 +133,7 @@ for i = 1:10:length(t) % Plot every 50th point to avoid clutter
         patch('Faces', F, 'Vertices', V_translated, 'FaceColor', [0.8 0.2 0.2], 'EdgeColor', 'none', 'FaceLighting', 'gouraud', 'FaceAlpha', 0.1, 'HandleVisibility','off');
     end
 
-    % Plot FW body frame basis vectors
-    scale = 5; % Scaling factor for the vectors
-    body_x = R_fw(:,1) * scale;
-    body_y = R_fw(:,2) * scale;
-    body_z = R_fw(:,3) * scale;
-
-    quiver3(pos_fw(1), pos_fw(2), pos_fw(3), body_x(1), body_x(2), -body_x(3), 'r', 'LineWidth', 1, 'HandleVisibility','off');
-    quiver3(pos_fw(1), pos_fw(2), pos_fw(3), body_y(1), body_y(2), -body_y(3), 'g', 'LineWidth', 1, 'HandleVisibility','off');
-    quiver3(pos_fw(1), pos_fw(2), pos_fw(3), body_z(1), body_z(2), -body_z(3), 'b', 'LineWidth', 1, 'HandleVisibility','off');
-
-    % Gimbal forward vector (actual pointing direction)
+    % Drone gimbal axis
     q_quad = quad_state(i, 4:7); % [q0, q1, q2, q3]
     q0=q_quad(1); q1=q_quad(2); q2=q_quad(3); q3=q_quad(4);
     R_quad = [1 - 2*(q2^2 + q3^2), 2*(q1*q2 - q0*q3), 2*(q1*q3 + q0*q2);
@@ -151,44 +142,77 @@ for i = 1:10:length(t) % Plot every 50th point to avoid clutter
               
     phi_g = quad_state(i, 14);
     theta_g = quad_state(i, 15);
-    % Reconstruct gimbal pointing vector in body frame from gimbal angles
-    % Assumes gimbal is mounted forwards
-    gimbal_vec_body = [cos(theta_g)*cos(phi_g); cos(theta_g)*sin(phi_g); -sin(theta_g)];
-    gimbal_forward_vec = R_quad * gimbal_vec_body;
+    
+    % This assumes a Z-Y rotation sequence for the gimbal, which is consistent
+    % with how the reference angles are now calculated in the controller.
+    R_gb = [cos(phi_g)*cos(theta_g), -sin(phi_g), cos(phi_g)*sin(theta_g);
+            sin(phi_g)*cos(theta_g),  cos(phi_g), sin(phi_g)*sin(theta_g);
+           -sin(theta_g),                 0,       cos(theta_g)];
+    R_gimbal_w = R_quad * R_gb;
 
+    % Plot gimbal frame basis vectors
+    scale_gimbal = 2.5; % Make arrows slightly longer than drone axis
+    line_width_gimbal = 1.5; % Make arrows slightly thinner than drone axis
+    dark_red = [0.6, 0, 0];
+    dark_green = [0, 0.6, 0];
+    dark_blue = [0, 0, 0.6];
+    pos_quad = [x_quad(i,1), x_quad(i,2), -x_quad(i,3)];
+    gimbal_x = R_gimbal_w(:,1) * scale_gimbal;
+    gimbal_y = R_gimbal_w(:,2) * scale_gimbal;
+    gimbal_z = R_gimbal_w(:,3) * scale_gimbal;
+
+    quiver3(pos_quad(1), pos_quad(2), pos_quad(3), gimbal_x(1), gimbal_x(2), -gimbal_x(3), 'Color', dark_red, 'LineWidth', line_width_gimbal, 'MaxHeadSize', 0.5, 'ShowArrowHead', 'on', 'HandleVisibility','off');
+    quiver3(pos_quad(1), pos_quad(2), pos_quad(3), gimbal_y(1), gimbal_y(2), -gimbal_y(3), 'Color', dark_green, 'LineWidth', line_width_gimbal, 'MaxHeadSize', 0.5, 'ShowArrowHead', 'on', 'HandleVisibility','off');
+    quiver3(pos_quad(1), pos_quad(2), pos_quad(3), gimbal_z(1), gimbal_z(2), -gimbal_z(3), 'Color', dark_blue, 'LineWidth', line_width_gimbal, 'MaxHeadSize', 0.5, 'ShowArrowHead', 'on', 'HandleVisibility','off');
+
+    % Plot drone body frame
+    scale_drone = 2; % Make arrows shorter
+    drone_x = R_quad(:,1) * scale_drone;
+    drone_y = R_quad(:,2) * scale_drone;
+    drone_z = R_quad(:,3) * scale_drone;
+    
+    offset = [0, 0, 2]; % Offset from the drone's center
+    pos_quad_offset = pos_quad + offset;
+
+    quiver3(pos_quad_offset(1), pos_quad_offset(2), pos_quad_offset(3), drone_x(1), drone_x(2), -drone_x(3), 'r', 'LineWidth', 2, 'MaxHeadSize', 0.5, 'ShowArrowHead', 'on', 'HandleVisibility','off');
+    quiver3(pos_quad_offset(1), pos_quad_offset(2), pos_quad_offset(3), drone_y(1), drone_y(2), -drone_y(3), 'g', 'LineWidth', 2, 'MaxHeadSize', 0.5, 'ShowArrowHead', 'on', 'HandleVisibility','off');
+    quiver3(pos_quad_offset(1), pos_quad_offset(2), pos_quad_offset(3), drone_z(1), drone_z(2), -drone_z(3), 'b', 'LineWidth', 2, 'MaxHeadSize', 0.5, 'ShowArrowHead', 'on', 'HandleVisibility','off');
+    
     % Plot vectors
     if ~legend_added
-        q2 = quiver3(x_quad(i,1), x_quad(i,2), -x_quad(i,3), gimbal_forward_vec(1), gimbal_forward_vec(2), -gimbal_forward_vec(3), 5, 'c', 'LineWidth', 2, 'DisplayName', 'Gimbal Pointing');
-        legend([p1, p2, q2, p_stl], 'Quadrotor Path', 'Fixed-Wing Path', 'Gimbal Pointing', 'Ghost FW aeroplane');
+        legend([p1, p2, p_stl], 'Quadrotor Path', 'Fixed-Wing Path', 'Ghost FW aeroplane');
         legend_added = true;
-    else
-        quiver3(x_quad(i,1), x_quad(i,2), -x_quad(i,3), gimbal_forward_vec(1), gimbal_forward_vec(2), -gimbal_forward_vec(3), 5, 'c', 'LineWidth', 2, 'HandleVisibility','off');
     end
 end
 light('Position',[1 0 0],'Style','infinite');
 light('Position',[-1 0 0],'Style','infinite');
 saveas(fig1, 'results/3d_trajectory.pdf');
 
-% Position Error
-error = x_fw - x_quad;
-fig2 = figure('Name', 'Position Error', 'NumberTitle', 'off');
-plot(t, error(:,1), 'r', t, error(:,2), 'g', t, error(:,3), 'b');
-grid on;
-title('Position Tracking Error');
-xlabel('Time (s)');
-ylabel('Error (m)');
-legend('x error', 'y error', 'z error');
-saveas(fig2, 'results/position_error.pdf');
 
-% Gimbal Angles
-phi_g = quad_state(:, 14);
-theta_g = quad_state(:, 15);
+% Gimbal Angles (raw from state)
+phi_g_raw = quad_state(:, 14);
+theta_g_raw = quad_state(:, 15);
 
 % --- Calculate Reference Angles and Errors Post-Simulation ---
 phi_g_ref_history = zeros(length(t), 1);
 theta_g_ref_history = zeros(length(t), 1);
+
+% New history vectors for full orientation tracking
+gimbal_global_roll_hist = zeros(length(t), 1);
+gimbal_global_pitch_hist = zeros(length(t), 1);
+gimbal_global_yaw_hist = zeros(length(t), 1);
+fw_global_roll_hist = zeros(length(t), 1);
+fw_global_pitch_hist = zeros(length(t), 1);
+fw_global_yaw_hist = zeros(length(t), 1);
+
 last_phi_g_ref = 0; % Initialize for post-processing unwrapping
 last_theta_g_ref = 0;
+
+% Initialize last angles for smoothing global plots
+last_gimbal_roll = 0; last_gimbal_pitch = 0; last_gimbal_yaw = 0;
+last_fw_roll = 0; last_fw_pitch = 0; last_fw_yaw = 0;
+% Initialize last angles for smoothing body-frame plots
+last_phi_g = 0; last_theta_g = 0;
 
 for i = 1:length(t)
     % Quadrotor orientation
@@ -198,45 +222,90 @@ for i = 1:length(t)
             2*(q1*q2+q0*q3), q0^2-q1^2+q2^2-q3^2, 2*(q2*q3-q0*q1);
             2*(q1*q3-q0*q2), 2*(q2*q3+q0*q1), q0^2-q1^2-q2^2+q3^2];
 
-    % The reference is the fixed-wing's velocity vector, which is already calculated
-    % for the quiver plot. We can reuse that.
-    q_fw_plot = fw_state(i, 7:10);
-    R_fw_plot = [1 - 2*(q_fw_plot(3)^2 + q_fw_plot(4)^2), 2*(q_fw_plot(2)*q_fw_plot(3) - q_fw_plot(1)*q_fw_plot(4)), 2*(q_fw_plot(2)*q_fw_plot(4) + q_fw_plot(1)*q_fw_plot(3));
-                 2*(q_fw_plot(2)*q_fw_plot(3) + q_fw_plot(1)*q_fw_plot(4)), 1 - 2*(q_fw_plot(2)^2 + q_fw_plot(4)^2), 2*(q_fw_plot(3)*q_fw_plot(4) - q_fw_plot(1)*q_fw_plot(2));
-                 2*(q_fw_plot(2)*q_fw_plot(4) - q_fw_plot(1)*q_fw_plot(3)), 2*(q_fw_plot(3)*q_fw_plot(4) + q_fw_plot(1)*q_fw_plot(2)), 1 - 2*(q_fw_plot(2)^2 + q_fw_plot(3)^2)];
-    vel_body_plot = fw_state(i, 4:6)';
-    fw_velocity_vec_w = R_fw_plot * (vel_body_plot / (norm(vel_body_plot) + 1e-9));
+    % --- NEW: Full Orientation Tracking Post-Processing ---
+    
+    % Get fixed-wing orientation in world frame
+    q_fw = fw_state(i, 7:10);
+    q0_fw=q_fw(1); q1_fw=q_fw(2); q2_fw=q_fw(3); q3_fw=q_fw(4);
+    R_fw_w = [q0_fw^2+q1_fw^2-q2_fw^2-q3_fw^2, 2*(q1_fw*q2_fw-q0_fw*q3_fw), 2*(q1_fw*q3_fw+q0_fw*q2_fw);
+              2*(q1_fw*q2_fw+q0_fw*q3_fw), q0_fw^2-q1_fw^2+q2_fw^2-q3_fw^2, 2*(q2_fw*q3_fw-q0_fw*q1_fw);
+              2*(q1_fw*q3_fw-q0_fw*q2_fw), 2*(q2_fw*q3_fw+q0_fw*q1_fw), q0_fw^2-q1_fw^2-q2_fw^2+q3_fw^2];
 
-    % Transform the fw velocity vector (our reference) to the quad's body frame
-    fw_forward_vec_b = R_bw' * fw_velocity_vec_w;
-    
-    % --- Reference Angle Calculation with Singularity Avoidance ---
-    xy_norm = sqrt(fw_forward_vec_b(1)^2 + fw_forward_vec_b(2)^2);
-    
+    % Calculate gimbal's orientation in world frame
+    phi_g_actual = quad_state(i, 14);
+    theta_g_actual = quad_state(i, 15);
+    % This assumes a Z-Y rotation sequence for the gimbal, which is consistent
+    % with how the reference angles are now calculated in the controller.
+    R_gb = [cos(phi_g_actual)*cos(theta_g_actual), -sin(phi_g_actual), cos(phi_g_actual)*sin(theta_g_actual);
+            sin(phi_g_actual)*cos(theta_g_actual),  cos(phi_g_actual), sin(phi_g_actual)*sin(theta_g_actual);
+           -sin(theta_g_actual),                 0,                cos(theta_g_actual)];
+    R_gimbal_w = R_bw * R_gb;
+
+    % --- Angle Smoothing Logic ---
+    jump_threshold = 170 * pi / 180;
+
+    % Raw angle calculations
+    gimbal_yaw_raw = atan2(R_gimbal_w(2,1), R_gimbal_w(1,1));
+    gimbal_pitch_raw = asin(-R_gimbal_w(3,1));
+    gimbal_roll_raw = atan2(R_gimbal_w(3,2), R_gimbal_w(3,3));
+    fw_yaw_raw = atan2(R_fw_w(2,1), R_fw_w(1,1));
+    fw_pitch_raw = asin(-R_fw_w(3,1));
+    fw_roll_raw = atan2(R_fw_w(3,2), R_fw_w(3,3));
+
     if i == 1
-        if xy_norm < 1e-6
-            last_phi_g_ref = 0;
-        else
-            last_phi_g_ref = atan2(fw_forward_vec_b(2), fw_forward_vec_b(1));
-        end
-        last_theta_g_ref = atan2(-fw_forward_vec_b(3), xy_norm + 1e-9);
+        last_gimbal_yaw = gimbal_yaw_raw;
+        last_gimbal_pitch = gimbal_pitch_raw;
+        last_gimbal_roll = gimbal_roll_raw;
+        last_fw_yaw = fw_yaw_raw;
+        last_fw_pitch = fw_pitch_raw;
+        last_fw_roll = fw_roll_raw;
     end
 
-    if xy_norm < 1e-6
+    % Smooth and store gimbal angles
+    delta = gimbal_yaw_raw - last_gimbal_yaw; delta = mod(delta + pi, 2*pi) - pi;
+    if abs(delta) < jump_threshold, last_gimbal_yaw = last_gimbal_yaw + delta; end
+    gimbal_global_yaw_hist(i) = last_gimbal_yaw;
+
+    delta = gimbal_pitch_raw - last_gimbal_pitch; delta = mod(delta + pi, 2*pi) - pi;
+    if abs(delta) < jump_threshold, last_gimbal_pitch = last_gimbal_pitch + delta; end
+    gimbal_global_pitch_hist(i) = last_gimbal_pitch;
+
+    delta = gimbal_roll_raw - last_gimbal_roll; delta = mod(delta + pi, 2*pi) - pi;
+    if abs(delta) < jump_threshold, last_gimbal_roll = last_gimbal_roll + delta; end
+    gimbal_global_roll_hist(i) = last_gimbal_roll;
+
+    % Smooth and store fixed-wing angles
+    delta = fw_yaw_raw - last_fw_yaw; delta = mod(delta + pi, 2*pi) - pi;
+    if abs(delta) < jump_threshold, last_fw_yaw = last_fw_yaw + delta; end
+    fw_global_yaw_hist(i) = last_fw_yaw;
+
+    delta = fw_pitch_raw - last_fw_pitch; delta = mod(delta + pi, 2*pi) - pi;
+    if abs(delta) < jump_threshold, last_fw_pitch = last_fw_pitch + delta; end
+    fw_global_pitch_hist(i) = last_fw_pitch;
+
+    delta = fw_roll_raw - last_fw_roll; delta = mod(delta + pi, 2*pi) - pi;
+    if abs(delta) < jump_threshold, last_fw_roll = last_fw_roll + delta; end
+    fw_global_roll_hist(i) = last_fw_roll;
+
+    % --- Calculate Body-Frame Reference Angles (for original plots) ---
+    R_gb_ref = R_bw' * R_fw_w;
+    theta_g_ref_raw = asin(-R_gb_ref(3,1));
+    phi_g_ref_raw = atan2(R_gb_ref(2,1), R_gb_ref(1,1));
+    
+    if i == 1
+        last_phi_g_ref = phi_g_ref_raw;
+        last_theta_g_ref = theta_g_ref_raw;
+    end
+    
+    delta_phi = phi_g_ref_raw - last_phi_g_ref;
+    delta_phi = mod(delta_phi + pi, 2*pi) - pi;
+    if abs(delta_phi) > (170 * pi / 180)
         phi_g_ref = last_phi_g_ref;
     else
-        phi_g_ref_raw = atan2(fw_forward_vec_b(2), fw_forward_vec_b(1));
-        delta_phi = phi_g_ref_raw - last_phi_g_ref;
-        delta_phi = mod(delta_phi + pi, 2*pi) - pi;
-        if abs(delta_phi) > (170 * pi / 180)
-            phi_g_ref = last_phi_g_ref;
-        else
-            phi_g_ref = last_phi_g_ref + delta_phi;
-        end
+        phi_g_ref = last_phi_g_ref + delta_phi;
     end
     last_phi_g_ref = phi_g_ref;
 
-    theta_g_ref_raw = atan2(-fw_forward_vec_b(3), xy_norm + 1e-9);
     delta_theta = theta_g_ref_raw - last_theta_g_ref;
     delta_theta = mod(delta_theta + pi, 2*pi) - pi;
     if abs(delta_theta) > (170 * pi / 180)
@@ -248,59 +317,147 @@ for i = 1:length(t)
     
     phi_g_ref_history(i) = phi_g_ref;
     theta_g_ref_history(i) = theta_g_ref;
+
+    % --- Smooth Actual Body-Frame Gimbal Angles ---
+    if i == 1
+        last_phi_g = phi_g_raw(i);
+        last_theta_g = theta_g_raw(i);
+    end
+    delta = phi_g_raw(i) - last_phi_g; delta = mod(delta + pi, 2*pi) - pi;
+    if abs(delta) < jump_threshold, last_phi_g = last_phi_g + delta; end
+    phi_g(i) = last_phi_g;
+
+    delta = theta_g_raw(i) - last_theta_g; delta = mod(delta + pi, 2*pi) - pi;
+    if abs(delta) < jump_threshold, last_theta_g = last_theta_g + delta; end
+    theta_g(i) = last_theta_g;
 end
 
-% Position Error
-error = x_fw - x_quad;
-figure('Name', 'Position Error', 'NumberTitle', 'off');
-plot(t, error(:,1), 'r', t, error(:,2), 'g', t, error(:,3), 'b');
+% --- Combined Position and Orientation Plot ---
+fig_combined = figure('Name', 'Position and Orientation Tracking', 'NumberTitle', 'off');
+set(fig_combined, 'Position', [100, 100, 800, 1200]); % Adjust figure size
+
+% X Position
+subplot(3,2,1);
+plot(t, x_quad(:,1), 'b', 'LineWidth', 1.5);
+hold on;
+plot(t, x_fw(:,1), 'r--', 'LineWidth', 1.5);
 grid on;
-title('Position Tracking Error');
+title('X Position');
+ylabel('Position (m)');
+legend('Gimbal', 'Fixed-Wing');
+
+% Y Position
+subplot(3,2,3);
+plot(t, x_quad(:,2), 'b', 'LineWidth', 1.5);
+hold on;
+plot(t, x_fw(:,2), 'r--', 'LineWidth', 1.5);
+grid on;
+title('Y Position');
+ylabel('Position (m)');
+legend('Gimbal', 'Fixed-Wing');
+
+% Z Position
+subplot(3,2,5);
+plot(t, -x_quad(:,3), 'b', 'LineWidth', 1.5);
+hold on;
+plot(t, -x_fw(:,3), 'r--', 'LineWidth', 1.5);
+grid on;
+title('Z Position (Altitude)');
 xlabel('Time (s)');
-ylabel('Error (m)');
-legend('x error', 'y error', 'z error');
+ylabel('Position (m)');
+legend('Gimbal', 'Fixed-Wing');
 
-% Gimbal Angles
-phi_g = quad_state(:, 14);
-theta_g = quad_state(:, 15);
-
-% Plot Actual vs Reference
-fig3 = figure('Name', 'Gimbal Angles vs Reference', 'NumberTitle', 'off');
-subplot(2,1,1);
-plot(t, phi_g, 'r', t, phi_g_ref_history, 'r--');
+% Roll Angle
+subplot(3,2,2);
+plot(t, gimbal_global_roll_hist * 180/pi, 'b', 'LineWidth', 1.5);
+hold on;
+plot(t, fw_global_roll_hist * 180/pi, 'r--', 'LineWidth', 1.5);
 grid on;
-title('Gimbal Roll Angle');
-ylabel('Angle (rad)');
-legend('Actual', 'Reference');
-saveas(fig3, 'results/gimbal_angles.pdf');
+title('Global Roll Angle');
+ylabel('Angle (degrees)');
+legend('Gimbal', 'Fixed-Wing');
 
-subplot(2,1,2);
-plot(t, theta_g, 'g', t, theta_g_ref_history, 'g--');
+% Pitch Angle
+subplot(3,2,4);
+plot(t, gimbal_global_pitch_hist * 180/pi, 'b', 'LineWidth', 1.5);
+hold on;
+plot(t, fw_global_pitch_hist * 180/pi, 'r--', 'LineWidth', 1.5);
 grid on;
-title('Gimbal Pitch Angle');
+title('Global Pitch Angle');
+ylabel('Angle (degrees)');
+legend('Gimbal', 'Fixed-Wing');
+
+% Yaw Angle
+subplot(3,2,6);
+plot(t, gimbal_global_yaw_hist * 180/pi, 'b', 'LineWidth', 1.5);
+hold on;
+plot(t, fw_global_yaw_hist * 180/pi, 'r--', 'LineWidth', 1.5);
+grid on;
+title('Global Yaw Angle');
 xlabel('Time (s)');
-ylabel('Angle (rad)');
-legend('Actual', 'Reference');
+ylabel('Angle (degrees)');
+legend('Gimbal', 'Fixed-Wing');
 
-% Gimbal Angle Errors
-phi_g_error = phi_g_ref_history - phi_g;
-theta_g_error = theta_g_ref_history - theta_g;
+saveas(fig_combined, 'results/position_and_orientation.pdf');
 
-fig4 = figure('Name', 'Gimbal Angle Errors', 'NumberTitle', 'off');
-subplot(2,1,1);
-plot(t, phi_g_error, 'r');
+% --- Control Input Plots ---
+control_history = quadrotor_dynamics_realtime('get_history');
+time_hist = control_history(:, 1);
+thrust_hist = control_history(:, 2);
+u_p_hist = control_history(:, 3);
+u_q_hist = control_history(:, 4);
+u_r_hist = control_history(:, 5);
+p_hist = control_history(:, 6);
+q_hist = control_history(:, 7);
+r_hist = control_history(:, 8);
+u_phi_g_hist = control_history(:, 9);
+u_theta_g_hist = control_history(:, 10);
+
+fig_control_inputs = figure('Name', 'Control Inputs', 'NumberTitle', 'off');
+set(fig_control_inputs, 'Position', [100, 100, 800, 1000]); % Adjust figure size
+
+subplot(3,2,1);
+plot(time_hist, thrust_hist, 'k', 'LineWidth', 1.5);
 grid on;
-title('Gimbal Roll Error');
-ylabel('Error (rad)');
-legend('Roll Error');
+title('Total Thrust');
+ylabel('Force (N)');
 
-subplot(2,1,2);
-plot(t, theta_g_error, 'g');
+subplot(3,2,2);
+plot(time_hist, u_p_hist, 'r', 'LineWidth', 1.5);
 grid on;
-title('Gimbal Pitch Error');
+title('Roll Control Moment');
+ylabel('Nm');
+legend('u_p');
+
+subplot(3,2,3);
+plot(time_hist, u_q_hist, 'g', 'LineWidth', 1.5);
+grid on;
+title('Pitch Control Moment');
+ylabel('Nm');
+legend('u_q');
+
+subplot(3,2,4);
+plot(time_hist, u_r_hist, 'b', 'LineWidth', 1.5);
+grid on;
+title('Yaw Control Moment');
+ylabel('Nm');
+legend('u_r');
+
+subplot(3,2,5);
+plot(time_hist, u_phi_g_hist, 'm', 'LineWidth', 1.5);
+grid on;
+title('Gimbal Roll Control Input');
 xlabel('Time (s)');
-ylabel('Error (rad)');
-legend('Pitch Error');
-saveas(fig4, 'results/gimbal_angle_errors.pdf');
+ylabel('rad/s');
+
+subplot(3,2,6);
+plot(time_hist, u_theta_g_hist, 'c', 'LineWidth', 1.5);
+grid on;
+title('Gimbal Pitch Control Input');
+xlabel('Time (s)');
+ylabel('rad/s');
+
+saveas(fig_control_inputs, 'results/control_inputs.pdf');
+
 
 disp('Real-time simulation and plotting complete.');

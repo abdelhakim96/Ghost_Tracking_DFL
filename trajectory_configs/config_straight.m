@@ -1,5 +1,5 @@
 %% Simulation parameters
-t_end = 6.0;         % End time of the simulation (s)
+t_end = 2.0;         % End time of the simulation (s)
 delta_t = 0.01;     % Time step for the simulation (s)
 t_sim = 0:delta_t:t_end; % Time vector for the simulation
 
@@ -62,5 +62,7 @@ dfl_gains.c4 = 10.0;   % Yaw gain
 dfl_gains.c5 = 10.00;    % Yaw rate gain
 
 % Gimbal Gains
-dfl_gains.c_phi = 50000.0;      % Proportional gain for gimbal roll
-dfl_gains.c_theta = 70000.0;    % Proportional gain for gimbal pitch
+dfl_gains.c_phi = 700000.0;      % Proportional gain for gimbal roll
+dfl_gains.c_theta = 700000.0;    % Proportional gain for gimbal pitch
+dfl_gains.c_ff_phi = 100000.0;      % Feedforward gain for gimbal roll
+dfl_gains.c_ff_theta = 10000.0;    % Feedforward gain for gimbal pitch

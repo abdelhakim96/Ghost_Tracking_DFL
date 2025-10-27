@@ -1,11 +1,20 @@
-function state_dot = quadrotor_dynamics_realtime(t, state, xd, vd, ad, jd, sd, psid, fw_orientation, dfl_gains)
+function state_dot = quadrotor_dynamics_realtime(t, state, xd, vd, ad, jd, sd, psid, fw_state, dfl_gains)
 % This function defines the dynamics of the quadrotor using a DFL controller
 % with a first-order gimbal model.
 
-persistent last_phi_g_ref last_theta_g_ref;
+persistent last_phi_g_ref last_theta_g_ref last_t history;
+
+% Special case to retrieve history
+if ischar(t) && strcmp(t, 'get_history')
+    state_dot = history;
+    return;
+end
+
 if t == 0 % Reset persistent variables at the start of the simulation
     last_phi_g_ref = [];
     last_theta_g_ref = [];
+    last_t = 0;
+    history = [];
 end
 
 % Define global variables
@@ -32,6 +41,8 @@ c5 = dfl_gains.c5;    % Yaw rate gain
 % Gains for the virtual controller of the first-order gimbal
 c_phi = dfl_gains.c_phi;      % Proportional gain for gimbal roll
 c_theta = dfl_gains.c_theta;    % Proportional gain for gimbal pitch
+c_ff_phi = dfl_gains.c_ff_phi;    % Feedforward gain for gimbal roll
+c_ff_theta = dfl_gains.c_ff_theta;% Feedforward gain for gimbal pitch
 
 % Normalize the quaternion
 q_bw = q_bw / (norm(q_bw) + 1e-9);
@@ -53,61 +64,59 @@ v_pos = sd - c3*(j - jd) - c2*(a_ - ad) - c1*(v_w - vd) - c0*(x_w - xd);
 v_yaw = 0 - c5*(vpsi - 0) - c4*(atan2(2*(q0*q3+q1*q2), 1-2*(q2^2+q3^2)) - psid);
 
 % Gimbal virtual control
-% The reference is the fixed-wing's velocity vector in the world frame.
-% However, the input `vd` to this function IS the fixed-wing's velocity vector.
-% So, we can use it directly.
-fw_forward_vec_w = vd / (norm(vd) + 1e-9); % Normalize to get a direction vector
+% --- NEW: Full Orientation Tracking ---
+% The reference is the fixed-wing's full 3D orientation.
+% We want the gimbal's world orientation to match the fixed-wing's world orientation.
+% R_gimbal_w = R_bw * R_gb  should equal R_fw_w
+% So, the desired gimbal orientation in the body frame is R_gb_ref = R_bw' * R_fw_w
 
-% Transform the fixed-wing forward vector to the quadrotor's body frame
-fw_forward_vec_b = R_bw' * fw_forward_vec_w;
+% Convert fixed-wing quaternion to rotation matrix
+fw_orientation = fw_state(7:10);
+q_fw = fw_orientation / (norm(fw_orientation) + 1e-9);
+q0_fw=q_fw(1); q1_fw=q_fw(2); q2_fw=q_fw(3); q3_fw=q_fw(4);
+R_fw_w = [q0_fw^2+q1_fw^2-q2_fw^2-q3_fw^2, 2*(q1_fw*q2_fw-q0_fw*q3_fw), 2*(q1_fw*q3_fw+q0_fw*q2_fw);
+          2*(q1_fw*q2_fw+q0_fw*q3_fw), q0_fw^2-q1_fw^2+q2_fw^2-q3_fw^2, 2*(q2_fw*q3_fw-q0_fw*q1_fw);
+          2*(q1_fw*q3_fw-q0_fw*q2_fw), 2*(q2_fw*q3_fw+q0_fw*q1_fw), q0_fw^2-q1_fw^2-q2_fw^2+q3_fw^2];
 
-% --- Reference Angle Calculation with Singularity Avoidance ---
+% Calculate the desired gimbal orientation relative to the quadrotor body
+R_gb_ref = R_bw' * R_fw_w;
 
-% Calculate projection on body XY plane
-xy_norm = sqrt(fw_forward_vec_b(1)^2 + fw_forward_vec_b(2)^2);
+% Extract gimbal angles from the desired rotation matrix.
+% This assumes a Z-Y rotation sequence for the gimbal (phi_g is yaw, theta_g is pitch)
+% which matches the kinematics used to generate the pointing vector previously.
+theta_g_ref_raw = asin(-R_gb_ref(3,1));
+phi_g_ref_raw = atan2(R_gb_ref(2,1), R_gb_ref(1,1));
 
+% --- Reference Angle Unwrapping and Singularity Avoidance ---
 % Initialize persistent variables on first run
 if isempty(last_phi_g_ref)
-    if xy_norm < 1e-6
-        last_phi_g_ref = 0; % Default to 0 if starting in singularity
-    else
-        last_phi_g_ref = atan2(fw_forward_vec_b(2), fw_forward_vec_b(1));
-    end
-    last_theta_g_ref = atan2(-fw_forward_vec_b(3), xy_norm + 1e-9);
+    last_phi_g_ref = phi_g_ref_raw;
+    last_theta_g_ref = theta_g_ref_raw;
 end
 
-% Check for singularity (gimbal lock)
-if xy_norm < 1e-6
-    % In singularity, phi is ill-defined. Hold the last known value.
+% Robust angle unwrapping with jump rejection for phi_g (yaw-like angle)
+delta_phi = phi_g_ref_raw - last_phi_g_ref;
+% Wrap to [-pi, pi]
+delta_phi = mod(delta_phi + pi, 2*pi) - pi;
+% Reject large jumps (e.g., near singularity)
+if abs(delta_phi) > (170 * pi / 180)
     phi_g_ref = last_phi_g_ref;
 else
-    % Calculate raw angle
-    phi_g_ref_raw = atan2(fw_forward_vec_b(2), fw_forward_vec_b(1));
-    
-    % Robust angle unwrapping with jump rejection
-    delta_phi = phi_g_ref_raw - last_phi_g_ref;
-
-    % Wrap to [-pi, pi]
-    delta_phi = mod(delta_phi + pi, 2*pi) - pi;
-
-    % Reject large jumps
-    if abs(delta_phi) > (170 * pi / 180)
-        phi_g_ref = last_phi_g_ref;
-    else
-        phi_g_ref = last_phi_g_ref + delta_phi;
-    end
+    phi_g_ref = last_phi_g_ref + delta_phi;
 end
+% --- Feedforward Calculation ---
+dt = t - last_t;
+if dt > 1e-6 % Avoid division by zero at the start or with repeated time steps
+    phi_g_ref_dot = (phi_g_ref - last_phi_g_ref) / dt;
+else
+    phi_g_ref_dot = 0;
+end
+last_phi_g_ref = phi_g_ref; % NOW update for the next iteration
 
-% Update persistent variable for next time step
-last_phi_g_ref = phi_g_ref;
-
-% Calculate theta reference (pitch) with robust unwrapping and jump rejection
-theta_g_ref_raw = atan2(-fw_forward_vec_b(3), xy_norm + 1e-9);
+% Robust angle unwrapping with jump rejection for theta_g (pitch-like angle)
 delta_theta = theta_g_ref_raw - last_theta_g_ref;
-
 % Wrap to [-pi, pi]
 delta_theta = mod(delta_theta + pi, 2*pi) - pi;
-
 % Reject large jumps
 if abs(delta_theta) > (170 * pi / 180)
     theta_g_ref = last_theta_g_ref;
@@ -115,11 +124,18 @@ else
     theta_g_ref = last_theta_g_ref + delta_theta;
 end
 
-last_theta_g_ref = theta_g_ref;
+% --- Feedforward Calculation ---
+if dt > 1e-6 % Avoid division by zero at the start or with repeated time steps
+    theta_g_ref_dot = (theta_g_ref - last_theta_g_ref) / dt;
+else
+    theta_g_ref_dot = 0;
+end
+last_theta_g_ref = theta_g_ref; % NOW update for the next iteration
+last_t = t;
 
-% Virtual control for gimbal (first-order system)
-v_phi = -c_phi * (phi_g - phi_g_ref);
-v_theta = -c_theta * (theta_g - theta_g_ref);
+% Virtual control for gimbal with feedforward
+v_phi = -c_phi * (phi_g - phi_g_ref) + c_ff_phi * phi_g_ref_dot;
+v_theta = -c_theta * (theta_g - theta_g_ref) + c_ff_theta * theta_g_ref_dot;
 
 % Combined virtual control vector
 v = [v_pos; v_yaw; v_phi; v_theta];
@@ -159,5 +175,8 @@ state_dot(14) = phi_g_dot;
 state_dot(15) = theta_g_dot;
 state_dot(16) = zeta_dot;
 state_dot(17) = xi_dot;
+
+% Store history
+history(end+1, :) = [t, zeta, u(2), u(3), u(4), omega_b', u(5), u(6)];
 
 end
