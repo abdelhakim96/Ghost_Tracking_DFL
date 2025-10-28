@@ -1,5 +1,5 @@
 %% Simulation parameters
-t_end = 2;         % End time of the simulation (s)
+t_end = 1.5;         % End time of the simulation (s)
 delta_t = 0.01;     % Time step for the simulation (s)
 t_sim = 0:delta_t:t_end; % Time vector for the simulation
 
@@ -47,7 +47,7 @@ fw_initial.w0 = 0;
 fw_initial.x0 = [0; 0; -100; fw_initial.u0; fw_initial.v0; fw_initial.w0; 1; 0; 0; 0; 0; 0; 0]; % x, y, z, u, v, w, q0, q1, q2, q3, p, q, r
 
 % Drone
-quad_initial.pos = [0; 0; -99.9];           % Initial position (m)
+quad_initial.pos = [0; 0; -100.0];           % Initial position (m)
 quad_initial.vel = [fw_initial.u0; 0; 0];   % Initial velocity (m/s)
 quad_initial.angle = [0; 0; 0.0];             % Initial Euler angles (rad) [roll, pitch, yaw]
 quad_initial.ang_vel = [0; 0; 0];           % Initial angular velocity (rad/s) [roll, pitch, yaw]
@@ -60,17 +60,16 @@ fw_controls.elevator = -0.05;   % Constant elevator deflection (rad)
 fw_controls.aileron = 0.0;       % No roll input
 fw_controls.rudder = 0;        % No yaw input
 
-%% DFL Controller Gains
 % Position and Yaw Gains
-dfl_gains.c0 = 3250.0;  % Position gain
-dfl_gains.c1 = 3400.0;  % Velocity gain
+dfl_gains.c0 = 23250.0;  % Position gain
+dfl_gains.c1 = 23400.0;  % Velocity gain
 dfl_gains.c2 = 350.0;   % Acceleration gain
 dfl_gains.c3 = 100.0;    % Jerk gain
-dfl_gains.c4 = 1.0;   % Yaw gain
-dfl_gains.c5 = 0.0;    % Yaw rate gain
+dfl_gains.c4 = 0.0;   % Yaw gain
+dfl_gains.c5 = 10.0;    % Yaw rate gain
 
 % Gimbal Gains
-dfl_gains.c_phi = 150.0;      % Proportional gain for gimbal roll
-dfl_gains.c_theta = 150.0;    % Proportional gain for gimbal pitch
+dfl_gains.c_phi = 50.0;      % Proportional gain for gimbal roll
+dfl_gains.c_theta = 350.0;    % Proportional gain for gimbal pitch
 dfl_gains.c_ff_phi = 1.0;      % Feedforward gain for gimbal roll
 dfl_gains.c_ff_theta = 1.0;    % Feedforward gain for gimbal pitch

@@ -5,7 +5,7 @@ clc;
 
 % Select the configuration file to use
 % 'loop', 'roll', or 'straight'
-config_to_run = 'roll';
+config_to_run = 'straight';
 
 run(['trajectory_configs/config_' config_to_run '.m']);
 

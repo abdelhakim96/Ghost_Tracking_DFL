@@ -179,7 +179,7 @@ for i = 1:length(t)
     % Unwrap angles for smooth plotting
     gimbal_global_yaw_hist(i) = unwrapAngle(raw_yaw, last_gimbal_yaw);
     gimbal_global_pitch_hist(i) = unwrapAngle(raw_pitch, last_gimbal_pitch);
-    gimbal_global_roll_hist(i) = unwrapAngle(raw_roll, last_gimbal_roll);
+    gimbal_global_roll_hist(i) = unwrapAngle(0.0, last_gimbal_roll);
 
     % Update last angles
     last_gimbal_yaw = gimbal_global_yaw_hist(i);
