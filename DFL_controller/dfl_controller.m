@@ -51,11 +51,24 @@ j = (zeta*(R_bw(:,1)*omega_b(2) - R_bw(:,2)*omega_b(1)) + R_bw(:,3)*xi)/m;
 
 % --- Consistent Yaw Rate Calculation ---
 % To get the world-frame yaw rate (vpsi), we need to transform the body-frame
-% angular velocity omega_b into world-frame angular rates.
+% angular velocity omega_b into world-frame angular rates using the full
+% kinematic transformation.
 eul_drone = quat2eul(q_bw', 'ZYX');
-eul_drone_rates = [0, sin(eul_drone(3)), cos(eul_drone(3));
-                   0, cos(eul_drone(3)), -sin(eul_drone(3));
-                   1, 0, 0] * omega_b;
+phi = eul_drone(3);   % Roll
+theta = eul_drone(2); % Pitch
+
+% Full kinematic transformation from body rates to Euler rates
+% This avoids singularities when pitch is not zero.
+T_inv = [1, sin(phi)*tan(theta), cos(phi)*tan(theta);
+         0, cos(phi),            -sin(phi);
+         0, sin(phi)/cos(theta), cos(phi)/cos(theta)];
+
+% Add a safeguard for the singularity at pitch = +/- 90 degrees
+if abs(cos(theta)) < 1e-6
+    eul_drone_rates = [0; 0; 0]; % Avoid division by zero
+else
+    eul_drone_rates = T_inv * omega_b;
+end
 vpsi = eul_drone_rates(1); % Yaw rate in world frame
 
 % Virtual control input
@@ -79,9 +92,20 @@ fw_roll = eul_fw(3);
 fw_omega_b = fw_state(11:13);  % [p_fw, q_fw, r_fw]
 
 % Convert FW body rates to world frame yaw rate consistently
-eul_fw_rates = [0, sin(fw_roll), cos(fw_roll);
-                0, cos(fw_roll), -sin(fw_roll);
-                1, 0, 0] * fw_omega_b;
+phi_fw = fw_roll;
+theta_fw = fw_pitch;
+
+% Full kinematic transformation from body rates to Euler rates
+T_inv_fw = [1, sin(phi_fw)*tan(theta_fw), cos(phi_fw)*tan(theta_fw);
+            0, cos(phi_fw),              -sin(phi_fw);
+            0, sin(phi_fw)/cos(theta_fw), cos(phi_fw)/cos(theta_fw)];
+
+% Add a safeguard for the singularity at pitch = +/- 90 degrees
+if abs(cos(theta_fw)) < 1e-6
+    eul_fw_rates = [0; 0; 0]; % Avoid division by zero
+else
+    eul_fw_rates = T_inv_fw * fw_omega_b;
+end
 fw_yaw_rate = eul_fw_rates(1);
 
 % Update the desired yaw trajectory for the quadrotor
@@ -93,7 +117,8 @@ v_pos = sd - c3*(j - jd) - c2*(a_ - ad) - c1*(v_w - vd) - c0*(x_w - xd);
 
 % Enhanced yaw control with feedforward
 drone_yaw = eul_drone(1);
-v_yaw = psid_dot - c5*(vpsi - psid_dot) - c4*(drone_yaw - psid);
+yaw_error = wrapToPi(drone_yaw - psid);
+v_yaw = psid_dot - c5*(vpsi - psid_dot) - c4*yaw_error;
 
 % For the gimbal: compute relative orientation accounting for yaw tracking
 % Build rotation matrix for fixed-wing using MATLAB's built-in function
@@ -105,14 +130,11 @@ R_fw_w = quat2rotm(q_fw');
 % So, the desired gimbal rotation relative to the drone body is R_gb_desired = R_bw' * R_fw_w.
 R_gb_desired = R_bw' * R_fw_w;
 
-% Extract desired gimbal angles (phi_g_ref, theta_g_ref) from R_gb_desired.
-% The gimbal kinematics are a ZY rotation sequence (Ry(theta) then Rz(phi)).
-% R = [c(phi)c(th), -s(phi), c(phi)s(th); 
-%      s(phi)c(th),  c(phi), s(phi)s(th); 
-%          -s(th),       0,       c(th)]
-% From this, theta = asin(-R(3,1)) and phi = atan2(R(2,1), R(1,1)).
-phi_g_ref_raw = atan2(R_gb_desired(2,1), R_gb_desired(1,1));
-theta_g_ref_raw = asin(-R_gb_desired(3,1));
+% Extract desired gimbal angles from the rotation matrix using the 'ZYX' convention.
+eul_gb_desired = rotm2eul(R_gb_desired, 'ZYX');
+% The output is [yaw, pitch, roll].
+theta_g_ref_raw = eul_gb_desired(2); % Pitch
+phi_g_ref_raw = eul_gb_desired(3);   % Roll
 
 % --- Reference Angle Unwrapping and Singularity Avoidance ---
 if isempty(last_phi_g_ref)
@@ -122,29 +144,29 @@ end
 
 % Use the utility function to unwrap the gimbal roll reference angle
 phi_g_ref = unwrapAngle(phi_g_ref_raw, last_phi_g_ref);
-
-dt = t - last_t;
-if dt > 1e-6
-    phi_g_ref_dot = (phi_g_ref - last_phi_g_ref) / dt;
-else
-    phi_g_ref_dot = 0;
-end
-last_phi_g_ref = phi_g_ref;
+last_phi_g_ref = phi_g_ref; % Update for next iteration's unwrap
 
 % Use the utility function to unwrap the gimbal pitch reference angle
 theta_g_ref = unwrapAngle(theta_g_ref_raw, last_theta_g_ref);
+last_theta_g_ref = theta_g_ref; % Update for next iteration's unwrap
 
-if dt > 1e-6
-    theta_g_ref_dot = (theta_g_ref - last_theta_g_ref) / dt;
-else
-    theta_g_ref_dot = 0;
-end
-last_theta_g_ref = theta_g_ref;
-last_t = t;
+% --- Calculate desired gimbal rates from relative angular velocity ---
+% Transform fixed-wing angular velocity to drone body frame
+omega_fw_in_b = R_gb_desired * fw_omega_b;
+
+% Calculate relative angular velocity
+omega_rel_b = omega_fw_in_b - omega_b;
+
+% Use the first two components as desired gimbal rates (feedforward term)
+phi_g_ref_dot = omega_rel_b(1);   % Desired roll rate
+theta_g_ref_dot = omega_rel_b(2); % Desired pitch rate
+
 
 % Virtual control for gimbal with feedforward
-v_phi = -c_phi * (phi_g - phi_g_ref) + c_ff_phi * phi_g_ref_dot;
-v_theta = -c_theta * (theta_g - theta_g_ref) + c_ff_theta * theta_g_ref_dot;
+phi_g_error = wrapToPi(phi_g - phi_g_ref);
+theta_g_error = wrapToPi(theta_g - theta_g_ref);
+v_phi = -c_phi * phi_g_error + c_ff_phi * phi_g_ref_dot;
+v_theta = -c_theta * theta_g_error + c_ff_theta * theta_g_ref_dot;
 
 
 %v_phi = 0.0;

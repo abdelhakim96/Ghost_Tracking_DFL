@@ -162,10 +162,19 @@ for i = 1:length(t)
            -sin(theta_g_actual),                 0,                cos(theta_g_actual)];
     R_gimbal_w = R_bw * R_gb;
 
-    % Calculate raw angles
-    raw_yaw = atan2(R_gimbal_w(2,1), R_gimbal_w(1,1));
-    raw_pitch = asin(-R_gimbal_w(3,1));
-    raw_roll = atan2(R_gimbal_w(3,2), R_gimbal_w(3,3));
+    % Calculate raw angles with gimbal lock check
+    pitch_val = -R_gimbal_w(3,1);
+    if abs(pitch_val) > 0.9999
+        % Gimbal lock case
+        raw_yaw = atan2(R_gimbal_w(1,2), R_gimbal_w(2,2));
+        raw_pitch = asin(pitch_val);
+        raw_roll = 0; % Roll is not well-defined in this case
+    else
+        % Standard case
+        raw_yaw = atan2(R_gimbal_w(2,1), R_gimbal_w(1,1));
+        raw_pitch = asin(pitch_val);
+        raw_roll = atan2(R_gimbal_w(3,2), R_gimbal_w(3,3));
+    end
 
     % Unwrap angles for smooth plotting
     gimbal_global_yaw_hist(i) = unwrapAngle(raw_yaw, last_gimbal_yaw);

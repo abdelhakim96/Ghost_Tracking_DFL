@@ -1,10 +1,8 @@
 function unwrapped_angle = unwrapAngle(current_angle, last_angle)
 % unwrapAngle Robustly unwraps an angle to prevent jumps.
-% This function calculates the difference between the current and last angle,
-% wraps it to the range [-pi, pi], and rejects jumps larger than a threshold.
+% This function finds the multiple of 2*pi that brings the current_angle
+% closest to the last_angle.
 
-    delta_angle = current_angle - last_angle;
-    delta_angle = mod(delta_angle + pi, 2*pi) - pi;
-
-    unwrapped_angle = last_angle + delta_angle;
+    k = round((last_angle - current_angle) / (2*pi));
+    unwrapped_angle = current_angle + k*2*pi;
 end
