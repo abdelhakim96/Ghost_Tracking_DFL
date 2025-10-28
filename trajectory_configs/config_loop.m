@@ -1,5 +1,5 @@
 %% Simulation parameters
-t_end = 2.5;         % End time of the simulation (s)
+t_end = 3.5;         % End time of the simulation (s)
 delta_t = 0.01;     % Time step for the simulation (s)
 t_sim = 0:delta_t:t_end; % Time vector for the simulation
 

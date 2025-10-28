@@ -1,5 +1,5 @@
 %% Simulation parameters
-t_end = 1.5;         % End time of the simulation (s)
+t_end = 2.5;         % End time of the simulation (s)
 delta_t = 0.01;     % Time step for the simulation (s)
 t_sim = 0:delta_t:t_end; % Time vector for the simulation
 
@@ -61,9 +61,9 @@ fw_controls.aileron = 0.0;       % No roll input
 fw_controls.rudder = 0;        % No yaw input
 
 % Position and Yaw Gains
-dfl_gains.c0 = 23250.0;  % Position gain
-dfl_gains.c1 = 23400.0;  % Velocity gain
-dfl_gains.c2 = 350.0;   % Acceleration gain
+dfl_gains.c0 = 232.0;  % Position gain
+dfl_gains.c1 = 234.0;  % Velocity gain
+dfl_gains.c2 = 35.0;   % Acceleration gain
 dfl_gains.c3 = 100.0;    % Jerk gain
 dfl_gains.c4 = 0.0;   % Yaw gain
 dfl_gains.c5 = 10.0;    % Yaw rate gain

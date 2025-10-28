@@ -247,8 +247,9 @@ fig_debug = figure('Name', 'Global Roll Angle Comparison', 'NumberTitle', 'off')
 plot(t, gimbal_global_roll_hist*180/pi, 'b-', 'LineWidth', 1.5);
 hold on; plot(time_hist, gimbal_roll_from_history*180/pi, 'r--', 'LineWidth', 1.5);
 plot(t, drone_global_roll_hist*180/pi, 'g-.', 'LineWidth', 1.5);
+plot(t, fw_global_roll_hist*180/pi, 'm:', 'LineWidth', 1.5);
 grid on; title('Roll Comparison'); xlabel('s'); ylabel('deg');
-legend('Post-Proc','Sim','Drone');
+legend('Post-Proc','Sim','Drone', 'Fixed-Wing');
 saveas(fig_debug, 'results/debug_roll_comparison.pdf');
 drawnow; figure(fig_debug); pause(0.1);
 

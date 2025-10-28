@@ -36,6 +36,29 @@ R_bw = [q0^2+q1^2-q2^2-q3^2, 2*(q1*q2-q0*q3), 2*(q1*q3+q0*q2);
         2*(q1*q2+q0*q3), q0^2-q1^2+q2^2-q3^2, 2*(q2*q3-q0*q1);
         2*(q1*q3-q0*q2), 2*(q2*q3+q0*q1), q0^2-q1^2-q2^2+q3^2];
 
+% --- Angle Jump Correction ---
+% Calculate Euler angles from quaternion
+roll = atan2(2*(q0*q1 + q2*q3), 1 - 2*(q1^2 + q2^2));
+pitch = asin(2*(q0*q2 - q3*q1));
+yaw = atan2(2*(q0*q3 + q1*q2), 1 - 2*(q2^2 + q3^2));
+
+% Get previous angles from history
+if isempty(history)
+    previous_roll = [];
+    previous_pitch = [];
+    previous_yaw = [];
+else
+    previous_roll = history(end, 12);
+    previous_pitch = history(end, 13);
+    previous_yaw = history(end, 14);
+end
+
+% Correct for angle jumps
+corrected_roll = correctAngleJump(roll, previous_roll);
+corrected_pitch = correctAngleJump(pitch, previous_pitch);
+corrected_yaw = correctAngleJump(yaw, previous_yaw);
+% --- End Angle Jump Correction ---
+
 % Calculate gimbal's orientation in world frame for debugging
 R_gb = [cos(phi_g)*cos(theta_g), -sin(phi_g), cos(phi_g)*sin(theta_g);
         sin(phi_g)*cos(theta_g),  cos(phi_g), sin(phi_g)*sin(theta_g);
@@ -76,9 +99,10 @@ state_dot(16) = zeta_dot;
 state_dot(17) = xi_dot;
 
 % Store history
-gimbal_global_roll =0.0;
-history(end+1, :) = [t, zeta, u(2), u(3), u(4), omega_b', u(5), u(6), gimbal_global_roll];
 
+gimbal_global_roll = phi_g;
+
+history(end+1, :) = [t, zeta, u(2), u(3), u(4), omega_b', u(5), u(6), gimbal_global_roll, corrected_roll, corrected_pitch, corrected_yaw];
 
 fprintf('Gimbal Local Roll Angle (phi_g): %f, Gimbal Global Roll Angle: %f\n', phi_g, gimbal_global_roll);
 
