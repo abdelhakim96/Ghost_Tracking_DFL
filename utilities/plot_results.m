@@ -9,6 +9,10 @@ fw_state = state(:, 18:30);
 if ~exist('results', 'dir')
    mkdir('results')
 end
+results_dir = ['results/results_' config_to_run];
+if ~exist(results_dir, 'dir')
+   mkdir(results_dir)
+end
 
 % Extract quadrotor and fixed-wing positions
 x_quad = quad_state(:, 1:3);
@@ -116,7 +120,7 @@ for i = 1:10:length(t)
 end
 light('Position',[1 0 0],'Style','infinite');
 light('Position',[-1 0 0],'Style','infinite');
-saveas(fig1, 'results/3d_trajectory.pdf');
+saveas(fig1, [results_dir '/3d_trajectory_' config_to_run '.pdf']);
 drawnow; figure(fig1); pause(0.1);
 
 %% Orientation and Reference Calculations
@@ -191,6 +195,17 @@ for i = 1:length(t)
     fw_global_roll_hist(i) = atan2(R_fw_w(3,2), R_fw_w(3,3));
 end
 
+%% Correct for angle jumps
+gimbal_global_roll_hist = neglectAngleJump(gimbal_global_roll_hist);
+gimbal_global_pitch_hist = neglectAngleJump(gimbal_global_pitch_hist);
+gimbal_global_yaw_hist = neglectAngleJump(gimbal_global_yaw_hist);
+fw_global_roll_hist = neglectAngleJump(fw_global_roll_hist);
+fw_global_pitch_hist = neglectAngleJump(fw_global_pitch_hist);
+fw_global_yaw_hist = neglectAngleJump(fw_global_yaw_hist);
+drone_global_roll_hist = neglectAngleJump(drone_global_roll_hist);
+drone_global_pitch_hist = neglectAngleJump(drone_global_pitch_hist);
+
+
 %% Combined Position and Orientation Plot
 fig_combined = figure('Name', 'Position and Orientation Tracking', 'NumberTitle', 'off');
 set(fig_combined, 'Position', [100, 100, 800, 1200]);
@@ -207,7 +222,7 @@ subplot(3,2,4); plot(t, gimbal_global_pitch_hist*180/pi, 'b', t, fw_global_pitch
 title('Global Pitch'); ylabel('deg'); grid on;
 subplot(3,2,6); plot(t, gimbal_global_yaw_hist*180/pi, 'b', t, fw_global_yaw_hist*180/pi, 'r--', 'LineWidth', 1.5);
 title('Global Yaw'); ylabel('deg'); xlabel('Time (s)'); grid on;
-saveas(fig_combined, 'results/position_and_orientation.pdf');
+saveas(fig_combined, [results_dir '/position_and_orientation_' config_to_run '.pdf']);
 drawnow; figure(fig_combined); pause(0.1);
 
 %% Control Inputs
@@ -228,7 +243,7 @@ subplot(3,2,3); plot(time_hist, u_q_hist, 'g', 'LineWidth', 1.5); title('Pitch M
 subplot(3,2,4); plot(time_hist, u_r_hist, 'b', 'LineWidth', 1.5); title('Yaw Moment'); grid on;
 subplot(3,2,5); plot(time_hist, u_phi_g_hist, 'm', 'LineWidth', 1.5); title('Gimbal Roll Input'); xlabel('s'); grid on;
 subplot(3,2,6); plot(time_hist, u_theta_g_hist, 'c', 'LineWidth', 1.5); title('Gimbal Pitch Input'); xlabel('s'); grid on;
-saveas(fig_control_inputs, 'results/control_inputs.pdf');
+saveas(fig_control_inputs, [results_dir '/control_inputs_' config_to_run '.pdf']);
 drawnow; figure(fig_control_inputs); pause(0.1);
 
 %% Drone State Plot
@@ -239,7 +254,7 @@ grid on; title('Drone Position'); xlabel('s'); ylabel('m'); legend('x','y','z');
 subplot(2,1,2);
 plot(t, gimbal_global_roll_hist*180/pi, 'r', t, gimbal_global_pitch_hist*180/pi, 'g', t, gimbal_global_yaw_hist*180/pi, 'b', 'LineWidth', 1.5);
 grid on; title('Drone Orientation'); xlabel('s'); ylabel('deg'); legend('Roll','Pitch','Yaw');
-saveas(fig_drone_state, 'results/drone_state.pdf');
+saveas(fig_drone_state, [results_dir '/drone_state_' config_to_run '.pdf']);
 drawnow; figure(fig_drone_state); pause(0.1);
 
 %% Debug Roll Comparison
@@ -250,7 +265,7 @@ plot(t, drone_global_roll_hist*180/pi, 'g-.', 'LineWidth', 1.5);
 plot(t, fw_global_roll_hist*180/pi, 'm:', 'LineWidth', 1.5);
 grid on; title('Roll Comparison'); xlabel('s'); ylabel('deg');
 legend('Post-Proc','Sim','Drone', 'Fixed-Wing');
-saveas(fig_debug, 'results/debug_roll_comparison.pdf');
+saveas(fig_debug, [results_dir '/debug_roll_comparison_' config_to_run '.pdf']);
 drawnow; figure(fig_debug); pause(0.1);
 
 %% Debug Pitch Comparison
@@ -260,7 +275,7 @@ hold on; plot(t, fw_global_pitch_hist*180/pi, 'r--', 'LineWidth', 1.5);
 plot(t, drone_global_pitch_hist*180/pi, 'g-.', 'LineWidth', 1.5);
 grid on; title('Pitch Comparison'); xlabel('s'); ylabel('deg');
 legend('Gimbal','FW','Drone');
-saveas(fig_pitch_debug, 'results/debug_pitch_comparison.pdf');
+saveas(fig_pitch_debug, [results_dir '/debug_pitch_comparison_' config_to_run '.pdf']);
 drawnow; figure(fig_pitch_debug); pause(0.1);
 
 disp('✅ Real-time simulation and plotting complete. All figures are visible in separate tabs.');
