@@ -87,9 +87,9 @@ for i = 1:10:length(t) % Plot every 50th point to avoid clutter
     body_y = R_fw(:,2) * scale;
     body_z = R_fw(:,3) * scale;
 
-    quiver3(pos_fw(1), pos_fw(2), pos_fw(3), body_x(1), body_x(2), -body_x(3), 'r', 'LineWidth', 1, 'HandleVisibility','off');
-    quiver3(pos_fw(1), pos_fw(2), pos_fw(3), body_y(1), body_y(2), -body_y(3), 'g', 'LineWidth', 1, 'HandleVisibility','off');
-    quiver3(pos_fw(1), pos_fw(2), pos_fw(3), body_z(1), body_z(2), -body_z(3), 'b', 'LineWidth', 1, 'HandleVisibility','off');
+    quiver3(pos_fw(1), pos_fw(2), pos_fw(3), body_x(1), body_x(2), -body_x(3), 'Color', [0.6, 0, 0], 'LineWidth', 1, 'HandleVisibility','off');
+    quiver3(pos_fw(1), pos_fw(2), pos_fw(3), body_y(1), body_y(2), -body_y(3), 'Color', [0, 0.6, 0], 'LineWidth', 1, 'HandleVisibility','off');
+    q_fw_axes = quiver3(pos_fw(1), pos_fw(2), pos_fw(3), body_z(1), body_z(2), -body_z(3), 'Color', [0, 0, 0.6], 'LineWidth', 1, 'DisplayName', 'Fixed-Wing Frame');
 
     % Gimbal forward vector (actual pointing direction)
     q_quad = quad_state(i, 4:7); % [q0, q1, q2, q3]
@@ -100,18 +100,31 @@ for i = 1:10:length(t) % Plot every 50th point to avoid clutter
               
     phi_g = quad_state(i, 14);
     theta_g = quad_state(i, 15);
-    % Reconstruct gimbal pointing vector in body frame from gimbal angles
-    % Assumes gimbal is mounted forwards
-    gimbal_vec_body = [cos(theta_g)*cos(phi_g); cos(theta_g)*sin(phi_g); -sin(theta_g)];
-    gimbal_forward_vec = R_quad * gimbal_vec_body;
+    
+    % Reconstruct gimbal rotation matrix (body to gimbal)
+    R_gb = [cos(phi_g)*cos(theta_g), -sin(phi_g), cos(phi_g)*sin(theta_g);
+            sin(phi_g)*cos(theta_g),  cos(phi_g), sin(phi_g)*sin(theta_g);
+           -sin(theta_g),                 0,                cos(theta_g)];
+    
+    % Gimbal orientation in world frame
+    R_gimbal_w = R_quad * R_gb;
+
+    % Gimbal body frame basis vectors
+    gimbal_scale = 2; % Scaling factor for the vectors
+    gimbal_x = R_gimbal_w(:,1) * gimbal_scale;
+    gimbal_y = R_gimbal_w(:,2) * gimbal_scale;
+    gimbal_z = R_gimbal_w(:,3) * gimbal_scale;
+
+    % Plot gimbal axes
+    pos_quad = [x_quad(i,1), x_quad(i,2), -x_quad(i,3) - 1]; % Offset by 1m in Z for visibility
+    quiver3(pos_quad(1), pos_quad(2), pos_quad(3), gimbal_x(1), gimbal_x(2), -gimbal_x(3), 'r', 'LineWidth', 2, 'HandleVisibility','off');
+    quiver3(pos_quad(1), pos_quad(2), pos_quad(3), gimbal_y(1), gimbal_y(2), -gimbal_y(3), 'g', 'LineWidth', 2, 'HandleVisibility','off');
+    q_gimbal = quiver3(pos_quad(1), pos_quad(2), pos_quad(3), gimbal_z(1), gimbal_z(2), -gimbal_z(3), 'b', 'LineWidth', 2, 'DisplayName', 'Gimbal Frame');
 
     % Plot vectors
     if ~legend_added
-        q2 = quiver3(x_quad(i,1), x_quad(i,2), -x_quad(i,3), gimbal_forward_vec(1), gimbal_forward_vec(2), -gimbal_forward_vec(3), 5, 'c', 'LineWidth', 2, 'DisplayName', 'Gimbal Pointing');
-        legend([p1, p2, q2, p_stl], 'Quadrotor Path', 'Fixed-Wing Path', 'Gimbal Pointing', 'Ghost FW aeroplane');
+        legend([p1, p2, p_stl, q_gimbal, q_fw_axes], 'Quadrotor Path', 'Fixed-Wing Path', 'Ghost FW aeroplane', 'Gimbal Frame', 'Fixed-Wing Frame');
         legend_added = true;
-    else
-        quiver3(x_quad(i,1), x_quad(i,2), -x_quad(i,3), gimbal_forward_vec(1), gimbal_forward_vec(2), -gimbal_forward_vec(3), 5, 'c', 'LineWidth', 2, 'HandleVisibility','off');
     end
 end
 light('Position',[1 0 0],'Style','infinite');
