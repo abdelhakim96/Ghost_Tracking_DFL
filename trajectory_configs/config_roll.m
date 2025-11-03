@@ -80,5 +80,5 @@ dfl_gains.c4 = 1.0;   % Yaw gain
 dfl_gains.c5 = 1.00;    % Yaw rate gain
 
 % Gimbal Gains
-dfl_gains.c_phi = 11500.0      % Proportional gain for gimbal roll
+dfl_gains.c_phi = 21500.0      % Proportional gain for gimbal roll
 dfl_gains.c_theta = 11700.0;    % Proportional gain for gimbal pitch
