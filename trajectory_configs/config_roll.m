@@ -46,6 +46,15 @@ fw_initial.v0 = 0;
 fw_initial.w0 = 0;
 fw_initial.x0 = [0; 0; -100; fw_initial.u0; fw_initial.v0; fw_initial.w0; 1; 0; 0; 0; 0; 0; 0]; % x, y, z, u, v, w, q0, q1, q2, q3, p, q, r
 
+% Quadrotor
+x0_quad = fw_initial.x0(1) -0.01; y0_quad = fw_initial.x0(2) -0.001 ; z0_quad = fw_initial.x0(3)-0.001;
+q0_quad = 1; q1_quad = 0; q2_quad = 0; q3_quad = 0;
+u0_quad = fw_initial.u0; v0_quad = fw_initial.v0; w0_quad = fw_initial.w0;
+p_quad = 0; q_quad = 0; r_quad = 0;
+zeta = quad_params.m*quad_params.g; xi = 0;
+phi_g = 0; theta_g = 0; gamma_g = 0;
+quad_initial_state = [x0_quad; y0_quad; z0_quad; q0_quad; q1_quad; q2_quad; q3_quad; u0_quad; v0_quad; w0_quad; p_quad; q_quad; r_quad; phi_g; theta_g; gamma_g; zeta; xi];
+
 %% Fixed-wing control inputs
 fw_controls.t_sim = t_sim; % Pass time vector for interpolation
 fw_controls.thrust = 100 * ones(size(t_sim));      % Reset thrust to original value
@@ -56,7 +65,7 @@ roll_duration = 1.0; % s, longer duration for a wider barrel roll
 roll_end_time = roll_start_time + roll_duration;
 
 % Aileron input (sine pulse for one full roll)
-aileron_amplitude = 0.6; % rad
+aileron_amplitude = -0.6; % rad
 aileron_input = zeros(size(t_sim));
 roll_indices = t_sim >= roll_start_time & t_sim <= roll_end_time;
 aileron_input(roll_indices) = aileron_amplitude * sin(pi * (t_sim(roll_indices) - roll_start_time) / roll_duration);
@@ -76,9 +85,10 @@ dfl_gains.c0 = 51150.0;  % Position gain
 dfl_gains.c1 = 51140.0;  % Velocity gain
 dfl_gains.c2 = 1150.0;   % Acceleration gain
 dfl_gains.c3 = 150.0;    % Jerk gain
-dfl_gains.c4 = 1.0;   % Yaw gain
-dfl_gains.c5 = 1.00;    % Yaw rate gain
+dfl_gains.c4 = 0.0;   % Yaw gain (Increased for faster response)
+dfl_gains.c5 = 0.00;    % Yaw rate gain (Increased for faster response)
 
 % Gimbal Gains
-dfl_gains.c_phi = 21500.0      % Proportional gain for gimbal roll
-dfl_gains.c_theta = 11700.0;    % Proportional gain for gimbal pitch
+dfl_gains.c_phi = 21500.0;      % Proportional gain for gimbal yaw (Tuned for axis-angle)
+dfl_gains.c_theta = 1000.0;    % Proportional gain for gimbal pitch (Tuned for axis-angle)
+dfl_gains.c_gamma = 1000.0;    % Proportional gain for gimbal roll (Tuned for axis-angle)

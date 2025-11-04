@@ -1,8 +1,9 @@
 function plotting(t, state, config_to_run)
 % Post-processing and Plotting
+state = real(state);
 % Unpack states
-quad_state = state(:, 1:17);
-fw_state = state(:, 18:30);
+quad_state = state(:, 1:18);
+fw_state = state(:, 19:31);
 
 % Extract quadrotor and fixed-wing positions
 x_quad = quad_state(:, 1:3);
@@ -98,13 +99,15 @@ for i = 1:10:length(t) % Plot every 50th point to avoid clutter
               2*(q1*q2 + q0*q3), 1 - 2*(q1^2 + q3^2), 2*(q2*q3 - q0*q1);
               2*(q1*q3 - q0*q2), 2*(q2*q3 + q0*q1), 1 - 2*(q1^2 + q2^2)];
               
-    phi_g = quad_state(i, 14);
-    theta_g = quad_state(i, 15);
+    phi_g = quad_state(i, 14);   % Yaw
+    theta_g = quad_state(i, 15); % Pitch
+    gamma_g = quad_state(i, 16); % Roll
     
-    % Reconstruct gimbal rotation matrix (body to gimbal)
-    R_gb = [cos(phi_g)*cos(theta_g), -sin(phi_g), cos(phi_g)*sin(theta_g);
-            sin(phi_g)*cos(theta_g),  cos(phi_g), sin(phi_g)*sin(theta_g);
-           -sin(theta_g),                 0,                cos(theta_g)];
+    % Reconstruct gimbal rotation matrix (body to gimbal) using ZYX Euler sequence
+    R_z = [cos(phi_g) -sin(phi_g) 0; sin(phi_g) cos(phi_g) 0; 0 0 1];
+    R_y = [cos(theta_g) 0 sin(theta_g); 0 1 0; -sin(theta_g) 0 cos(theta_g)];
+    R_x = [1 0 0; 0 cos(gamma_g) -sin(gamma_g); 0 sin(gamma_g) cos(gamma_g)];
+    R_gb = R_z * R_y * R_x;
     
     % Gimbal orientation in world frame
     R_gimbal_w = R_quad * R_gb;
@@ -145,10 +148,12 @@ saveas(fig2, 'results/position_error.pdf');
 % Gimbal Angles (raw from state)
 phi_g_raw = quad_state(:, 14);
 theta_g_raw = quad_state(:, 15);
+gamma_g_raw = quad_state(:, 16);
 
 % --- Calculate Reference Angles and Errors Post-Simulation ---
 phi_g_ref_history = zeros(length(t), 1);
 theta_g_ref_history = zeros(length(t), 1);
+gamma_g_ref_history = zeros(length(t), 1);
 
 % New history vectors for full orientation tracking
 gimbal_global_roll_hist = zeros(length(t), 1);
@@ -201,6 +206,10 @@ for i = 1:length(t)
            -sin(theta_g_actual),                 0,                cos(theta_g_actual)];
     R_gimbal_w = R_bw * R_gb;
 
+    % Sanitize matrices before use
+    R_gimbal_w = real(R_gimbal_w);
+    R_fw_w = real(R_fw_w);
+
     % Raw angle calculations
     gimbal_global_yaw_raw_hist(i) = atan2(R_gimbal_w(2,1), R_gimbal_w(1,1));
     gimbal_global_pitch_raw_hist(i) = asin(-R_gimbal_w(3,1));
@@ -211,9 +220,16 @@ for i = 1:length(t)
 
     % --- Calculate Body-Frame Reference Angles (for original plots) ---
     R_gb_ref = R_bw' * R_fw_w;
-    theta_g_ref_raw = asin(-R_gb_ref(3,1));
-    phi_g_ref_raw = atan2(R_gb_ref(2,1), R_gb_ref(1,1));
     
+    % Extract target Euler angles from the desired rotation matrix
+    % Using a ZYX rotation sequence for the gimbal (yaw, pitch, roll)
+    angles_ref = rotm2eul(R_gb_ref, 'ZYX');
+    phi_g_ref_history(i) = angles_ref(1);   % Yaw
+    theta_g_ref_history(i) = angles_ref(2); % Pitch
+    gamma_g_ref_history(i) = angles_ref(3); % Roll
+    
+    % This old unwrapping code is no longer needed for the 3-axis controller
+    %{
     if i == 1
         last_phi_g_ref = phi_g_ref_raw;
         last_theta_g_ref = theta_g_ref_raw;
@@ -239,19 +255,7 @@ for i = 1:length(t)
     
     phi_g_ref_history(i) = phi_g_ref;
     theta_g_ref_history(i) = theta_g_ref;
-
-    % --- Smooth Actual Body-Frame Gimbal Angles ---
-    if i == 1
-        last_phi_g = phi_g_raw(i);
-        last_theta_g = theta_g_raw(i);
-    end
-    delta = phi_g_raw(i) - last_phi_g; delta = mod(delta + pi, 2*pi) - pi;
-    if abs(delta) < jump_threshold, last_phi_g = last_phi_g + delta; end
-    phi_g(i) = last_phi_g;
-
-    delta = theta_g_raw(i) - last_theta_g; delta = mod(delta + pi, 2*pi) - pi;
-    if abs(delta) < jump_threshold, last_theta_g = last_theta_g + delta; end
-    theta_g(i) = last_theta_g;
+    %}
 end
 
 % Unwrap angles
@@ -273,88 +277,125 @@ ylabel('Error (m)');
 legend('x error', 'y error', 'z error');
 
 % Gimbal Angles
-phi_g = quad_state(:, 14);
-theta_g = quad_state(:, 15);
+phi_g = unwrap(quad_state(:, 14));
+theta_g = unwrap(quad_state(:, 15));
+gamma_g = unwrap(quad_state(:, 16));
+phi_g_ref_history = unwrap(phi_g_ref_history);
+theta_g_ref_history = unwrap(theta_g_ref_history);
+gamma_g_ref_history = unwrap(gamma_g_ref_history);
 
-% Plot Actual vs Reference for Roll Angle
-fig3 = figure('Name', 'Gimbal Roll Angle vs Reference', 'NumberTitle', 'off');
-plot(t, phi_g, 'r', t, phi_g_ref_history, 'r--');
+
+% Plot Actual vs Reference for Yaw Angle
+fig3 = figure('Name', 'Gimbal Yaw Angle vs Reference', 'NumberTitle', 'off');
+plot(t, phi_g * 180/pi, 'r', t, phi_g_ref_history * 180/pi, 'r--');
 grid on;
-title('Gimbal Roll Angle');
+title('Gimbal Yaw Angle');
 xlabel('Time (s)');
-ylabel('Angle (rad)');
+ylabel('Angle (degrees)');
 legend('Actual', 'Reference');
-saveas(fig3, 'results/gimbal_roll_angle.pdf');
+saveas(fig3, 'results/gimbal_yaw_angle.pdf');
 
 % Plot Actual vs Reference for Pitch Angle
 fig_pitch = figure('Name', 'Gimbal Pitch Angle vs Reference', 'NumberTitle', 'off');
-plot(t, theta_g, 'g', t, theta_g_ref_history, 'g--');
+plot(t, theta_g * 180/pi, 'g', t, theta_g_ref_history * 180/pi, 'g--');
 grid on;
 title('Gimbal Pitch Angle');
 xlabel('Time (s)');
-ylabel('Angle (rad)');
+ylabel('Angle (degrees)');
 legend('Actual', 'Reference');
 saveas(fig_pitch, 'results/gimbal_pitch_angle.pdf');
+
+% Plot Actual vs Reference for Roll Angle
+fig_roll = figure('Name', 'Gimbal Roll Angle vs Reference', 'NumberTitle', 'off');
+plot(t, gamma_g * 180/pi, 'b', t, gamma_g_ref_history * 180/pi, 'b--');
+grid on;
+title('Gimbal Roll Angle');
+xlabel('Time (s)');
+ylabel('Angle (degrees)');
+legend('Actual', 'Reference');
+saveas(fig_roll, 'results/gimbal_roll_angle.pdf');
 
 % Gimbal Angle Errors
 phi_g_error = phi_g_ref_history - phi_g;
 theta_g_error = theta_g_ref_history - theta_g;
+gamma_g_error = gamma_g_ref_history - gamma_g;
 
 fig4 = figure('Name', 'Gimbal Angle Errors', 'NumberTitle', 'off');
-subplot(2,1,1);
-plot(t, phi_g_error, 'r');
+subplot(3,1,1);
+plot(t, phi_g_error * 180/pi, 'r');
 grid on;
-title('Gimbal Roll Error');
-ylabel('Error (rad)');
-legend('Roll Error');
+title('Gimbal Yaw Error');
+ylabel('Error (degrees)');
+legend('Yaw Error');
 
-subplot(2,1,2);
-plot(t, theta_g_error, 'g');
+subplot(3,1,2);
+plot(t, theta_g_error * 180/pi, 'g');
 grid on;
 title('Gimbal Pitch Error');
-xlabel('Time (s)');
-ylabel('Error (rad)');
+ylabel('Error (degrees)');
 legend('Pitch Error');
+
+subplot(3,1,3);
+plot(t, gamma_g_error * 180/pi, 'b');
+grid on;
+title('Gimbal Roll Error');
+xlabel('Time (s)');
+ylabel('Error (degrees)');
+legend('Roll Error');
 saveas(fig4, 'results/gimbal_angle_errors.pdf');
 
 % --- NEW: Consolidated Gimbal Tracking Performance Plot ---
 fig_consolidated = figure('Name', 'Gimbal Tracking Performance', 'NumberTitle', 'off');
 
-% Roll Angle vs Reference
-subplot(2,2,1);
-plot(t, phi_g, 'r', t, phi_g_ref_history, 'r--');
+% Yaw Angle vs Reference
+subplot(3,2,1);
+plot(t, phi_g * 180/pi, 'r', t, phi_g_ref_history * 180/pi, 'r--');
 grid on;
-title('Gimbal Roll Angle vs Reference');
-xlabel('Time (s)');
-ylabel('Angle (rad)');
+title('Gimbal Yaw Angle vs Reference');
+ylabel('Angle (degrees)');
 legend('Actual', 'Reference');
 
-% Roll Error
-subplot(2,2,2);
-plot(t, phi_g_error, 'r');
+% Yaw Error
+subplot(3,2,2);
+plot(t, phi_g_error * 180/pi, 'r');
 grid on;
-title('Gimbal Roll Error');
-xlabel('Time (s)');
-ylabel('Error (rad)');
-legend('Roll Error');
+title('Gimbal Yaw Error');
+ylabel('Error (degrees)');
+legend('Yaw Error');
 
 % Pitch Angle vs Reference
-subplot(2,2,3);
-plot(t, theta_g, 'g', t, theta_g_ref_history, 'g--');
+subplot(3,2,3);
+plot(t, theta_g * 180/pi, 'g', t, theta_g_ref_history * 180/pi, 'g--');
 grid on;
 title('Gimbal Pitch Angle vs Reference');
-xlabel('Time (s)');
-ylabel('Angle (rad)');
+ylabel('Angle (degrees)');
 legend('Actual', 'Reference');
 
 % Pitch Error
-subplot(2,2,4);
-plot(t, theta_g_error, 'g');
+subplot(3,2,4);
+plot(t, theta_g_error * 180/pi, 'g');
 grid on;
 title('Gimbal Pitch Error');
-xlabel('Time (s)');
-ylabel('Error (rad)');
+ylabel('Error (degrees)');
 legend('Pitch Error');
+
+% Roll Angle vs Reference
+subplot(3,2,5);
+plot(t, gamma_g * 180/pi, 'b', t, gamma_g_ref_history * 180/pi, 'b--');
+grid on;
+title('Gimbal Roll Angle vs Reference');
+xlabel('Time (s)');
+ylabel('Angle (degrees)');
+legend('Actual', 'Reference');
+
+% Roll Error
+subplot(3,2,6);
+plot(t, gamma_g_error * 180/pi, 'b');
+grid on;
+title('Gimbal Roll Error');
+xlabel('Time (s)');
+ylabel('Error (degrees)');
+legend('Roll Error');
 
 saveas(fig_consolidated, 'results/gimbal_tracking_performance.pdf');
 
@@ -396,5 +437,5 @@ saveas(fig_full_orientation, 'results/global_full_orientation_comparison.pdf');
 
 
 disp('Real-time simulation and plotting complete.');
-
+%}
 end

@@ -5,12 +5,12 @@ function state_dot = quadrotor_dynamics_realtime(t, state, xd, vd, ad, jd, sd, p
 % Define global variables
 global m Ix Iy Iz g
 
-% Unpack the state vector (17 states for 1st order gimbal)
+% Unpack the state vector (18 states for 3-axis gimbal)
 q_bw = state(4:7);      % Quaternion from Body to World [q0, q1, q2, q3]
 v_w = state(8:10);      % Velocity in World Frame
 omega_b = state(11:13); % Angular velocity in Body Frame [p, q, r]
-zeta = state(16);       % Total thrust
-xi = state(17);         % Derivative of total thrust
+zeta = state(17);       % Total thrust
+xi = state(18);         % Derivative of total thrust
 
 % Normalize the quaternion
 q_bw = q_bw / (norm(q_bw) + 1e-9);
@@ -41,16 +41,18 @@ xi_dot = u(1);
 % Gimbal dynamics (first-order)
 phi_g_dot = u(5);
 theta_g_dot = u(6);
+gamma_g_dot = u(7);
 
-% Assemble state derivative vector (17 states)
-state_dot = zeros(17,1);
+% Assemble state derivative vector (18 states)
+state_dot = zeros(18,1);
 state_dot(1:3) = x_dot;
 state_dot(4:7) = q_dot;
 state_dot(8:10) = v_dot;
 state_dot(11:13) = omega_dot;
 state_dot(14) = phi_g_dot;
 state_dot(15) = theta_g_dot;
-state_dot(16) = zeta_dot;
-state_dot(17) = xi_dot;
+state_dot(16) = gamma_g_dot;
+state_dot(17) = zeta_dot;
+state_dot(18) = xi_dot;
 
 end

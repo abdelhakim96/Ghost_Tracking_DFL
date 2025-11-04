@@ -39,9 +39,9 @@ q0_quad = 1; q1_quad = 0; q2_quad = 0; q3_quad = 0;
 u0_quad = fw_initial.u0; v0_quad = fw_initial.v0; w0_quad = fw_initial.w0;
 p_quad = 0; q_quad = 0; r_quad = 0;
 zeta = quad_params.m*quad_params.g; xi = 0;
-phi_g = 0; theta_g = 0;
-% phi_g_dot and theta_g_dot are no longer states
-quad_initial_state = [x0_quad; y0_quad; z0_quad; q0_quad; q1_quad; q2_quad; q3_quad; u0_quad; v0_quad; w0_quad; p_quad; q_quad; r_quad; phi_g; theta_g; zeta; xi];
+phi_g = 0; theta_g = 0; gamma_g = 0;
+% phi_g_dot, theta_g_dot, gamma_g_dot are now control inputs
+quad_initial_state = [x0_quad; y0_quad; z0_quad; q0_quad; q1_quad; q2_quad; q3_quad; u0_quad; v0_quad; w0_quad; p_quad; q_quad; r_quad; phi_g; theta_g; gamma_g; zeta; xi];
 
 % Combined state vector
 initial_state = [quad_initial_state; fw_x0];

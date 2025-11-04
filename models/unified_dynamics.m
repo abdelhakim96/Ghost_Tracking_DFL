@@ -1,9 +1,9 @@
 function state_dot = unified_dynamics(t, state, fw_params, fw_controls, dfl_gains)
     % This function orchestrates the simulation of a quadrotor tracking a fixed-wing aircraft.
 
-    % Unpack the combined state vector (quadrotor state is now 17 elements)
-    quad_state = state(1:17);
-    fw_state = state(18:30);
+    % Unpack the combined state vector (quadrotor state is now 18 elements)
+    quad_state = state(1:18);
+    fw_state = state(19:31);
 
     % --- Fixed-Wing Trajectory Generation ---
     % Use control inputs from the fw_controls struct.
