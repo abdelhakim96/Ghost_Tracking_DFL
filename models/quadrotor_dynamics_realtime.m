@@ -64,7 +64,7 @@ R_gb = [cos(phi_g)*cos(theta_g), -sin(phi_g), cos(phi_g)*sin(theta_g);
         sin(phi_g)*cos(theta_g),  cos(phi_g), sin(phi_g)*sin(theta_g);
        -sin(theta_g),                 0,       cos(theta_g)];
 R_gimbal_w = R_bw * R_gb;
-%gimbal_global_roll = atan2(R_gimbal_w(3,2), R_gimbal_w(3,3));
+gimbal_global_roll = atan2(R_gimbal_w(3,2), R_gimbal_w(3,3));
 
 % Call the controller to get the control input u
 u = dfl_controller(t, state, xd, vd, ad, jd, sd, psid, fw_state, dfl_gains);
@@ -100,7 +100,7 @@ state_dot(17) = xi_dot;
 
 % Store history
 
-gimbal_global_roll = phi_g;
+%gimbal_global_roll = phi_g;
 
 history(end+1, :) = [t, zeta, u(2), u(3), u(4), omega_b', u(5), u(6), gimbal_global_roll, corrected_roll, corrected_pitch, corrected_yaw];
 
