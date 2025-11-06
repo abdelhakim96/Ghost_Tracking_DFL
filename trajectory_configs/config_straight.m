@@ -73,3 +73,4 @@ dfl_gains.c_phi = 302.0;      % Proportional gain for gimbal roll
 dfl_gains.c_theta = 350.0;    % Proportional gain for gimbal pitch
 dfl_gains.c_ff_phi = 1.0;      % Feedforward gain for gimbal roll
 dfl_gains.c_ff_theta = 1.0;    % Feedforward gain for gimbal pitch
+dfl_gains.c_gamma = 0.0;    % Added to fix runtime error

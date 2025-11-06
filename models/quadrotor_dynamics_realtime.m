@@ -15,7 +15,7 @@ if t == 0 % Reset persistent variables at the start of the simulation
 end
 
 % Define global variables
-global m Ix Iy Iz g
+global m Ix Iy Iz g Ax Ay Az
 
 % Unpack the state vector (17 states for 1st order gimbal)
 x_w = state(1:3);       % Position in World Frame [N, E, D]
@@ -43,20 +43,20 @@ pitch = asin(2*(q0*q2 - q3*q1));
 yaw = atan2(2*(q0*q3 + q1*q2), 1 - 2*(q2^2 + q3^2));
 
 % Get previous angles from history
-if isempty(history)
+% if isempty(history)
     previous_roll = [];
     previous_pitch = [];
     previous_yaw = [];
-else
-    previous_roll = history(end, 12);
-    previous_pitch = history(end, 13);
-    previous_yaw = history(end, 14);
-end
+% else
+%     previous_roll = history(end, 12);
+%     previous_pitch = history(end, 13);
+%     previous_yaw = history(end, 14);
+% end
 
-% Correct for angle jumps
-corrected_roll = correctAngleJump(roll, previous_roll);
-corrected_pitch = correctAngleJump(pitch, previous_pitch);
-corrected_yaw = correctAngleJump(yaw, previous_yaw);
+% Correct for angle jumps by unwrapping them
+corrected_roll = roll; %unwrapAngle(roll, previous_roll);
+corrected_pitch = pitch; %unwrapAngle(pitch, previous_pitch);
+corrected_yaw = yaw; %unwrapAngle(yaw, previous_yaw);
 % --- End Angle Jump Correction ---
 
 % Calculate gimbal's orientation in world frame for debugging
@@ -64,14 +64,15 @@ R_gb = [cos(phi_g)*cos(theta_g), -sin(phi_g), cos(phi_g)*sin(theta_g);
         sin(phi_g)*cos(theta_g),  cos(phi_g), sin(phi_g)*sin(theta_g);
        -sin(theta_g),                 0,       cos(theta_g)];
 R_gimbal_w = R_bw * R_gb;
-%gimbal_global_roll = atan2(R_gimbal_w(3,2), R_gimbal_w(3,3));
+gimbal_global_roll = atan2(R_gimbal_w(3,2), R_gimbal_w(3,3));
 
 % Call the controller to get the control input u
 u = dfl_controller(t, state, xd, vd, ad, jd, sd, psid, fw_state, dfl_gains);
 
 % Dynamics
+F_aero = [Ax; Ay; Az];
 F_thrust = R_bw * [0; 0; zeta];
-a_ = (F_thrust/m) - [0; 0; g];
+a_ = (F_thrust - F_aero)/m + [0; 0; g];
 
 % State Derivatives
 x_dot = v_w;
@@ -100,9 +101,9 @@ state_dot(17) = xi_dot;
 
 % Store history
 
-gimbal_global_roll = phi_g;
+%gimbal_global_roll = phi_g;
 
-history(end+1, :) = [t, zeta, u(2), u(3), u(4), omega_b', u(5), u(6), gimbal_global_roll, corrected_roll, corrected_pitch, corrected_yaw];
+history(end+1, :) = [t, zeta, u(2), u(3), u(4), omega_b', u(5), u(6), gimbal_global_roll];
 
 fprintf('Gimbal Local Roll Angle (phi_g): %f, Gimbal Global Roll Angle: %f\n', phi_g, gimbal_global_roll);
 

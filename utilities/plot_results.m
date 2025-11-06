@@ -84,11 +84,14 @@ for i = 1:10:length(t)
     R_quad = [1 - 2*(q2^2 + q3^2), 2*(q1*q2 - q0*q3), 2*(q1*q3 + q0*q2);
               2*(q1*q2 + q0*q3), 1 - 2*(q1^2 + q3^2), 2*(q2*q3 - q0*q1);
               2*(q1*q3 - q0*q2), 2*(q2*q3 + q0*q1), 1 - 2*(q1^2 + q2^2)];
+    
+    % Correctly reconstruct gimbal rotation from Euler angles in the state vector
     phi_g = quad_state(i, 14);
     theta_g = quad_state(i, 15);
     R_gb = [cos(phi_g)*cos(theta_g), -sin(phi_g), cos(phi_g)*sin(theta_g);
             sin(phi_g)*cos(theta_g),  cos(phi_g), sin(phi_g)*sin(theta_g);
-           -sin(theta_g), 0, cos(theta_g)];
+           -sin(theta_g),                 0,       cos(theta_g)];
+    
     R_gimbal_w = R_quad * R_gb;
     pos_quad = [x_quad(i,1), x_quad(i,2), -x_quad(i,3)];
 
@@ -124,8 +127,8 @@ saveas(fig1, [results_dir '/3d_trajectory_' config_to_run '.pdf']);
 drawnow; figure(fig1); pause(0.1);
 
 %% Orientation and Reference Calculations
-phi_g_raw = quad_state(:, 14);
-theta_g_raw = quad_state(:, 15);
+phi_g_raw = zeros(length(t), 1);
+theta_g_raw = zeros(length(t), 1);
 phi_g_ref_history = zeros(length(t), 1);
 theta_g_ref_history = zeros(length(t), 1);
 gimbal_global_roll_hist = zeros(length(t), 1);
@@ -159,11 +162,12 @@ for i = 1:length(t)
               2*(q1_fw*q2_fw+q0_fw*q3_fw), q0_fw^2-q1_fw^2+q2_fw^2-q3_fw^2, 2*(q2_fw*q3_fw-q0_fw*q1_fw);
               2*(q1_fw*q3_fw-q0_fw*q2_fw), 2*(q2_fw*q3_fw+q0_fw*q1_fw), q0_fw^2-q1_fw^2-q2_fw^2+q3_fw^2];
 
-    phi_g_actual = quad_state(i, 14);
-    theta_g_actual = quad_state(i, 15);
-    R_gb = [cos(phi_g_actual)*cos(theta_g_actual), -sin(phi_g_actual), cos(phi_g_actual)*sin(theta_g_actual);
-            sin(phi_g_actual)*cos(theta_g_actual),  cos(phi_g_actual), sin(phi_g_actual)*sin(theta_g_actual);
-           -sin(theta_g_actual),                 0,                cos(theta_g_actual)];
+    % Correctly reconstruct gimbal rotation from Euler angles in the state vector
+    phi_g = quad_state(i, 14);
+    theta_g = quad_state(i, 15);
+    R_gb = [cos(phi_g)*cos(theta_g), -sin(phi_g), cos(phi_g)*sin(theta_g);
+            sin(phi_g)*cos(theta_g),  cos(phi_g), sin(phi_g)*sin(theta_g);
+           -sin(theta_g),                 0,       cos(theta_g)];
     R_gimbal_w = R_bw * R_gb;
 
     % Calculate raw angles with gimbal lock check
@@ -183,7 +187,7 @@ for i = 1:length(t)
     % Unwrap angles for smooth plotting
     gimbal_global_yaw_hist(i) = unwrapAngle(raw_yaw, last_gimbal_yaw);
     gimbal_global_pitch_hist(i) = unwrapAngle(raw_pitch, last_gimbal_pitch);
-    gimbal_global_roll_hist(i) = unwrapAngle(0.0, last_gimbal_roll);
+    gimbal_global_roll_hist(i) = unwrapAngle(raw_roll, last_gimbal_roll);
 
     % Update last angles
     last_gimbal_yaw = gimbal_global_yaw_hist(i);

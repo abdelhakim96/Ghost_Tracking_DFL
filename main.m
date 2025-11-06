@@ -1,11 +1,12 @@
 %% 
 %% 
+close all;
 clear all;
 clc;
 
 % Select the configuration file to use
 % 'loop', 'roll', or 'straight'
-config_to_run = 'roll';
+config_to_run = 'loop';
 
 run(['trajectory_configs/config_' config_to_run '.m']);
 
@@ -40,12 +41,12 @@ p_quad = quad_initial.ang_vel(1); q_quad = quad_initial.ang_vel(2); r_quad = qua
 % Convert initial Euler angles to quaternions using MATLAB's built-in function
 % Using 'ZYX' convention for [yaw, pitch, roll] and outputting scalar-first quaternion [w, x, y, z]
 eul = [quad_initial.angle(3), quad_initial.angle(2), quad_initial.angle(1)]; % [psi, theta, phi]
-quat_quad = eul2quat(eul, 'ZYX');
+quat_quad = eul2quat(eul, 'ZYX')';
 
 zeta = quad_params.m*quad_params.g; xi = 0;
 phi_g = quad_initial.relative_angle(1); theta_g = quad_initial.relative_angle(2);
 % phi_g_dot and theta_g_dot are no longer states
-quad_initial_state = [x0_quad; y0_quad; z0_quad; quat_quad(1); quat_quad(2); quat_quad(3); quat_quad(4); u0_quad; v0_quad; w0_quad; p_quad; q_quad; r_quad; phi_g; theta_g; zeta; xi];
+quad_initial_state = [x0_quad; y0_quad; z0_quad; quat_quad; u0_quad; v0_quad; w0_quad; p_quad; q_quad; r_quad; phi_g; theta_g; zeta; xi];
 
 % Combined state vector
 initial_state = [quad_initial_state; fw_x0];
