@@ -1,4 +1,4 @@
-function u = dfl_controller(t, state, xd, vd, ad, jd, sd, psid, fw_state, dfl_gains)
+function u = drone_gimbal_controller(t, state, xd, vd, ad, jd, sd, psid, fw_state, dfl_gains)
 % This function computes the control input for the quadrotor using a DFL
 % controller with a first-order gimbal model.
 
@@ -30,9 +30,6 @@ c2 = dfl_gains.c2;   % Acceleration gain
 c3 = dfl_gains.c3;    % Jerk gain
 c4 = dfl_gains.c4;   % Yaw gain
 c5 = dfl_gains.c5;    % Yaw rate gain
-
-% Gains for the geometric gimbal controller
-k_g = dfl_gains.k_g; % Proportional gain for gimbal angular velocity
 
 % Normalize the quaternion (scalar-first format [w, x, y, z])
 q_bw = q_bw / (norm(q_bw) + 1e-9);
@@ -71,46 +68,9 @@ vpsi = eul_drone_rates(1); % Yaw rate in world frame
 % Virtual control input
 v_pos = sd - c3*(j - jd) - c2*(a_ - ad) - c1*(v_w - vd) - c0*(x_w - xd);
 
-% --- Geometric Gimbal Controller ---
-
-% Extract fixed-wing orientation
-fw_orientation = fw_state(7:10);
-q_fw = fw_orientation / (norm(fw_orientation) + 1e-9);
-
-% Desired gimbal orientation in world frame is the fixed-wing orientation
-q_gw_d = q_fw;
-
-% Current gimbal orientation in world frame
-% R_gw = R_bw * R_gb
-% We need to construct R_gb from phi_g and theta_g
-R_gb = eul2rotm([0, theta_g, phi_g], 'ZYX');
-R_gw = R_bw * R_gb;
-q_gw = rotm2quat(R_gw);
-
-% Ensure quaternions are row vectors for multiplication
-if iscolumn(q_gw)
-    q_gw = q_gw';
-end
-if iscolumn(q_gw_d)
-    q_gw_d = q_gw_d';
-end
-
-% Quaternion error
-q_e = quatmultiply(quatconj(q_gw), q_gw_d);
-
-% Desired angular velocity for the gimbal in the gimbal frame
-omega_g_d = 2 * k_g * [q_e(2); q_e(3); q_e(4)];
-if q_e(1) < 0
-    omega_g_d = -omega_g_d;
-end
-
-% The gimbal control inputs are the roll and pitch rates
-v_phi = omega_g_d(1);
-v_theta = omega_g_d(2);
-
 % --- DFL Virtual Control ---
 % Yaw control remains the same
-eul_fw = quat2eul(q_fw', 'ZYX');
+eul_fw = quat2eul(fw_state(7:10)', 'ZYX');
 fw_yaw = eul_fw(1);
 fw_omega_b = fw_state(11:13);
 phi_fw = eul_fw(3);
@@ -147,6 +107,6 @@ beta_val = beta_gimbal_func(state, 0, 0, 0, Ag_p, Ag_q, Ix, Iy, Iz, Ig_x, Ig_y, 
 u_dfl = alpha_val + beta_val * v;
 
 % The final control input vector
-u = [u_dfl(1); u_dfl(2); u_dfl(3); u_dfl(4); v_phi; v_theta];
+u = [u_dfl(1); u_dfl(2); u_dfl(3); u_dfl(4)];
 
 end

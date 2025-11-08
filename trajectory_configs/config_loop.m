@@ -69,5 +69,5 @@ dfl_gains.c3 = 100.0;    % Jerk gain
 dfl_gains.c4 = 0.0;   % Yaw gain
 dfl_gains.c5 = 0.0;    % Yaw rate gain
 
-% Gimbal Gains
-dfl_gains.k_g = 1.0;      % Proportional gain for gimbal angular velocity
+%% Geometric controller gains
+geom_gains.k_g = 100.0;      % Proportional gain for gimbal angular velocity

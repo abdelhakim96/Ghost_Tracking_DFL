@@ -1,6 +1,6 @@
-function state_dot = quadrotor_dynamics_realtime(t, state, xd, vd, ad, jd, sd, psid, fw_state, dfl_gains)
+function state_dot = quadrotor_dynamics_realtime(t, state, xd, vd, ad, jd, sd, psid, fw_state, dfl_gains, geom_gains)
 % This function defines the dynamics of the quadrotor.
-% The controller is now in a separate file: DFL_controller/dfl_controller.m
+% The controller is now in a separate file: DFL_controller/drone_gimbal_controller.m
 
 persistent history;
 
@@ -59,15 +59,14 @@ corrected_pitch = correctAngleJump(pitch, previous_pitch);
 corrected_yaw = correctAngleJump(yaw, previous_yaw);
 % --- End Angle Jump Correction ---
 
-% Calculate gimbal's orientation in world frame for debugging
-R_gb = [cos(phi_g)*cos(theta_g), -sin(phi_g), cos(phi_g)*sin(theta_g);
-        sin(phi_g)*cos(theta_g),  cos(phi_g), sin(phi_g)*sin(theta_g);
-       -sin(theta_g),                 0,       cos(theta_g)];
-R_gimbal_w = R_bw * R_gb;
-gimbal_global_roll = atan2(R_gimbal_w(3,2), R_gimbal_w(3,3));
+% Call DFL controller for drone body control (thrust rate and moments)
+u_dfl = drone_gimbal_controller(t, state, xd, vd, ad, jd, sd, psid, fw_state, dfl_gains);
 
-% Call the controller to get the control input u
-u = dfl_controller(t, state, xd, vd, ad, jd, sd, psid, fw_state, dfl_gains);
+% Call geometric controller for gimbal control (roll and pitch rates)
+u_geom = geometric_controller(state, fw_state, geom_gains);
+
+% Combine control inputs
+u = [u_dfl; u_geom]; % [xi_dot, tau_x, tau_y, tau_z, v_phi, v_theta]
 
 % Dynamics
 F_thrust = R_bw * [0; 0; zeta];
@@ -99,11 +98,11 @@ state_dot(16) = zeta_dot;
 state_dot(17) = xi_dot;
 
 % Store history
-
-%gimbal_global_roll = phi_g;
+% Calculate gimbal's orientation in world frame for debugging
+R_gb = eul2rotm([0, theta_g, phi_g], 'ZYX');
+R_gimbal_w = R_bw * R_gb;
+gimbal_global_roll = atan2(R_gimbal_w(3,2), R_gimbal_w(3,3));
 
 history(end+1, :) = [t, zeta, u(2), u(3), u(4), omega_b', u(5), u(6), gimbal_global_roll, corrected_roll, corrected_pitch, corrected_yaw];
-
-fprintf('Gimbal Local Roll Angle (phi_g): %f, Gimbal Global Roll Angle: %f\n', phi_g, gimbal_global_roll);
 
 end
