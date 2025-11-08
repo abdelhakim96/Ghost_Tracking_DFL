@@ -55,8 +55,8 @@ quad_initial.rpm = [0; 0; 0; 0];            % Initial rotor speeds (rpm)
 quad_initial.relative_angle = [0; 0; 0];    % Initial relative angle to the fixed-wing (rad) [roll, pitch, yaw]
 
 %% Fixed-wing control inputs
-fw_controls.thrust = 140;      % Constant thrust (N)
-fw_controls.elevator = -0.05;   % Constant elevator deflection (rad)
+fw_controls.thrust = 240;      % Constant thrust (N)
+fw_controls.elevator = -0.1;   % Constant elevator deflection (rad)
 fw_controls.aileron = 0.0;       % No roll input
 fw_controls.rudder = 0;        % No yaw input
 
@@ -69,7 +69,4 @@ dfl_gains.c4 = 0.0;   % Yaw gain
 dfl_gains.c5 = 0.0;    % Yaw rate gain
 
 % Gimbal Gains
-dfl_gains.c_phi = 302.0;      % Proportional gain for gimbal roll
-dfl_gains.c_theta = 350.0;    % Proportional gain for gimbal pitch
-dfl_gains.c_ff_phi = 1.0;      % Feedforward gain for gimbal roll
-dfl_gains.c_ff_theta = 1.0;    % Feedforward gain for gimbal pitch
+dfl_gains.k_g = 1.0;      % Proportional gain for gimbal angular velocity

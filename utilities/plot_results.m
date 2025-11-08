@@ -48,27 +48,24 @@ V_fw = V_fw / 20;
 model_scale = 0.7;
 V_fw = V_fw * model_scale;
 
-% Corrective rotation
-yaw_angle = -pi;
+% Corrective rotation to align STL model with NED frame
+yaw_angle = pi; % Rotate 180 degrees
 R_yaw = [cos(yaw_angle) -sin(yaw_angle) 0;
          sin(yaw_angle)  cos(yaw_angle) 0;
          0               0              1];
-pitch_angle = 20 * pi / 180;
+pitch_angle = -pi/2; % Pitch down 90 degrees
 R_pitch = [cos(pitch_angle) 0 sin(pitch_angle);
            0 1 0;
            -sin(pitch_angle) 0 cos(pitch_angle)];
-R_correction = R_pitch * R_yaw;
+R_correction = R_yaw * R_pitch;
 V_fw = (R_correction * V_fw')';
 
 for i = 1:10:length(t)
     % Fixed-wing pose
     pos_fw = [x_fw(i,1), x_fw(i,2), -x_fw(i,3)];
     q_fw = fw_state(i, 7:10);
-    q0=q_fw(1); q1=q_fw(2); q2=q_fw(3); q3=q_fw(4);
-    R_fw = [1 - 2*(q2^2 + q3^2), 2*(q1*q2 - q0*q3), 2*(q1*q3 + q0*q2);
-            2*(q1*q2 + q0*q3), 1 - 2*(q1^2 + q3^2), 2*(q2*q3 - q0*q1);
-            2*(q1*q3 - q0*q2), 2*(q2*q3 + q0*q1), 1 - 2*(q1^2 + q2^2)];
-    V_rotated_fw = (R_fw' * V_fw')';
+    R_fw = quat2rotm(q_fw);
+    V_rotated_fw = (R_fw * V_fw')';
     V_translated_fw = V_rotated_fw + pos_fw;
     
     if ~legend_added_stl

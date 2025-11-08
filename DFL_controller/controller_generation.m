@@ -95,9 +95,7 @@ y_out = [
     x0;                 % x position
     y0;                 % y position
     z0;                 % z position
-    2*(q1*q2+q0*q3);    % yaw control via rotation matrix element
-    phi_g;              % gimbal roll angle
-    theta_g];           % gimbal pitch angle
+    2*(q1*q2+q0*q3)];    % yaw control via rotation matrix element
 
 hx = y_out;
 
@@ -155,12 +153,9 @@ for i = 1:length(hx)
 end
 bx = simplify(bx_rows);
 
-% Check invertibility of the decoupling matrix
-fprintf('Checking determinant of the decoupling matrix...\n');
-det_deltax = simplify(det(deltax));
-fprintf('Symbolic determinant of deltax:\n');
-disp(det_deltax);
-fprintf('Please inspect the determinant for potential singularities.\n');
+% The decoupling matrix is non-square, so we cannot compute the determinant.
+% We will rely on the pseudo-inverse for the control law.
+fprintf('Decoupling matrix is non-square. Skipping determinant check.\n');
 
 fprintf('Computing control laws...\n');
 
@@ -181,4 +176,4 @@ fprintf('Done! Generated alpha_gimbal_func.m and beta_gimbal_func.m\n');
 fprintf('\nState vector size: %d states\n', length(x_bar));
 fprintf('Control vector size: %d inputs\n', size(gx_bar, 2));
 fprintf('Output vector size: %d outputs\n', length(hx));
-fprintf('Relative degrees: [%d, %d, %d, %d, %d, %d]\n', ri);
+fprintf('Relative degrees: [%d, %d, %d, %d]\n', ri);
