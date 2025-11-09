@@ -1,5 +1,5 @@
 %% Simulation parameters
-t_end = 1.1;         % End time of the simulation (s)
+t_end = 1.5;         % End time of the simulation (s)
 delta_t = 0.01;     % Time step for the simulation (s)
 t_sim = 0:delta_t:t_end; % Time vector for the simulation
 
@@ -23,7 +23,7 @@ quad_params.b = 1e-5;       % Thrust factor
 % (No specific gimbal parameters were listed in the original file)
 
 %% Fixed-wing model parameters for Red Bull Air Race Plane (Edge 540)
-fw_params.m = 290; % mass, kg
+fw_params.m = 13.5; % mass, kg
 fw_params.J = diag([550, 750, 1100]); % inertia matrix, kg*m^2 (estimated)
 fw_params.S = 9.1; % wing area, m^2
 fw_params.b = 7.44; % wingspan, m
@@ -35,16 +35,24 @@ fw_params.g = 9.81; % gravity, m/s^2
 fw_params.CL0 = 0.4; fw_params.CL_alpha = 5.7; fw_params.CL_q = 7.0; fw_params.CL_de = -0.8;
 fw_params.CD0 = 0.04; fw_params.k = 0.05; fw_params.CDa = 0.1; fw_params.CD_q = 0.0; fw_params.CD_de = 0.0;
 fw_params.CY_beta = -1.2; fw_params.CY_p = -0.1; fw_params.CY_r = 0.2; fw_params.CY_da = 0.2; fw_params.CY_dr = -0.2;
-fw_params.Cl_beta = -0.15; fw_params.Cl_p = -1.0; fw_params.Cl_r = 0.25; fw_params.Cl_da = 0.5; fw_params.Cl_dr = 0.05;
+fw_params.Cl_beta = -0.15; fw_params.Cl_p = -1.0; fw_params.Cl_r = 0.25; fw_params.Cl_da = 0.7; fw_params.Cl_dr = 0.05;
 fw_params.Cm0 = 0.0; fw_params.Cm_alpha = -1.5; fw_params.Cm_q = -15.0; fw_params.Cm_de = -1.8;
 fw_params.Cn_beta = 0.15; fw_params.Cn_p = -0.1; fw_params.Cn_r = -0.4; fw_params.Cn_da = 0.04; fw_params.Cn_dr = -0.1;
 
 %% Initial Conditions
 % Fixed-wing
-fw_initial.u0 = 120; 
+fw_initial.u0 = 50; 
 fw_initial.v0 = 0; 
 fw_initial.w0 = 0;
 fw_initial.x0 = [0; 0; -100; fw_initial.u0; fw_initial.v0; fw_initial.w0; 1; 0; 0; 0; 0; 0; 0]; % x, y, z, u, v, w, q0, q1, q2, q3, p, q, r
+
+% Drone
+quad_initial.pos = [-0.1; 0; -100.0];           % Initial position (m)
+quad_initial.vel = [fw_initial.u0; 0; 0];   % Initial velocity (m/s)
+quad_initial.angle = [0.0; 0; 0.0];             % Initial Euler angles (rad) [roll, pitch, yaw]
+quad_initial.ang_vel = [0; 0; 0];           % Initial angular velocity (rad/s) [roll, pitch, yaw]
+quad_initial.rpm = [0; 0; 0; 0];            % Initial rotor speeds (rpm)
+quad_initial.relative_angle = [0; 0; 0];    % Initial relative angle to the fixed-wing (rad) [roll, pitch, yaw]
 
 %% Fixed-wing control inputs
 fw_controls.t_sim = t_sim; % Pass time vector for interpolation
@@ -52,7 +60,7 @@ fw_controls.thrust = 100 * ones(size(t_sim));      % Reset thrust to original va
 
 % Coordinated barrel roll maneuver
 roll_start_time = 0.0; % s
-roll_duration = 1.0; % s, longer duration for a wider barrel roll
+roll_duration = 3.0; % s, longer duration for a wider barrel roll
 roll_end_time = roll_start_time + roll_duration;
 
 % Aileron input (sine pulse for one full roll)
@@ -70,15 +78,18 @@ fw_controls.elevator = elevator_input;
 
 fw_controls.rudder = zeros(size(t_sim));        % No yaw input
 
-%% DFL Controller Gains
+
+
 % Position and Yaw Gains
-dfl_gains.c0 = 51150.0;  % Position gain
-dfl_gains.c1 = 51140.0;  % Velocity gain
-dfl_gains.c2 = 1150.0;   % Acceleration gain
-dfl_gains.c3 = 150.0;    % Jerk gain
-dfl_gains.c4 = 1.0;   % Yaw gain
-dfl_gains.c5 = 1.00;    % Yaw rate gain
+dfl_gains.c0 = 232.0;  % Position gain
+dfl_gains.c1 = 234.0;  % Velocity gain
+dfl_gains.c2 = 55.0;   % Acceleration gain
+dfl_gains.c3 = 10.0;    % Jerk gain
+dfl_gains.c4 = 15.0;   % Yaw gain
+dfl_gains.c5 = 0.0;    % Yaw rate gain
 
 % Gimbal Gains
-dfl_gains.c_phi = 21500.0      % Proportional gain for gimbal roll
-dfl_gains.c_theta = 11700.0;    % Proportional gain for gimbal pitch
+dfl_gains.c_phi = 0.0;      % Proportional gain for gimbal roll
+dfl_gains.c_theta = 0.0;    % Proportional gain for gimbal pitch
+dfl_gains.c_ff_phi = 0.0;      % Feedforward gain for gimbal roll
+dfl_gains.c_ff_theta = 0.0;    % Feedforward gain for gimbal pitch

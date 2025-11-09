@@ -1,6 +1,18 @@
-function state_dot = quadrotor_dynamics_realtime(t, state, xd, vd, ad, jd, sd, psid,fw_state, fw_orientation, dfl_gains)
+function state_dot = quadrotor_dynamics_realtime(t, state, xd, vd, ad, jd, sd, psid, fw_state, dfl_gains)
 % This function defines the dynamics of the quadrotor.
-% The control input is computed by the dfl_controller function.
+% The controller is now in a separate file: DFL_controller/dfl_controller.m
+
+persistent history;
+
+% Special case to retrieve history
+if ischar(t) && strcmp(t, 'get_history')
+    state_dot = history;
+    return;
+end
+
+if t == 0 % Reset persistent variables at the start of the simulation
+    history = [];
+end
 
 % Define global variables
 global m Ix Iy Iz g
@@ -9,6 +21,8 @@ global m Ix Iy Iz g
 q_bw = state(4:7);      % Quaternion from Body to World [q0, q1, q2, q3]
 v_w = state(8:10);      % Velocity in World Frame
 omega_b = state(11:13); % Angular velocity in Body Frame [p, q, r]
+phi_g = state(14);      % Gimbal roll
+theta_g = state(15);    % Gimbal pitch
 zeta = state(16);       % Total thrust
 xi = state(17);         % Derivative of total thrust
 
@@ -21,8 +35,55 @@ R_bw = [q0^2+q1^2-q2^2-q3^2, 2*(q1*q2-q0*q3), 2*(q1*q3+q0*q2);
         2*(q1*q2+q0*q3), q0^2-q1^2+q2^2-q3^2, 2*(q2*q3-q0*q1);
         2*(q1*q3-q0*q2), 2*(q2*q3+q0*q1), q0^2-q1^2-q2^2+q3^2];
 
-% Compute control input
-u = dfl_controller(t, state, xd, vd, ad, jd, sd, psid,fw_state, fw_orientation, dfl_gains);
+% --- Angle Jump Correction ---
+% Calculate Euler angles from quaternion
+roll = atan2(2*(q0*q1 + q2*q3), 1 - 2*(q1^2 + q2^2));
+pitch = asin(2*(q0*q2 - q3*q1));
+yaw = atan2(2*(q0*q3 + q1*q2), 1 - 2*(q2^2 + q3^2));
+
+% Get previous angles from history
+if isempty(history)
+    previous_roll = [];
+    previous_pitch = [];
+    previous_yaw = [];
+else
+    previous_roll = history(end, 12);
+    previous_pitch = history(end, 13);
+    previous_yaw = history(end, 14);
+end
+
+% Correct for angle jumps
+corrected_roll = correctAngleJump(roll, previous_roll);
+corrected_pitch = correctAngleJump(pitch, previous_pitch);
+corrected_yaw = correctAngleJump(yaw, previous_yaw);
+% --- End Angle Jump Correction ---
+
+% Calculate gimbal's orientation in world frame for debugging
+R_gb = [cos(phi_g)*cos(theta_g), -sin(phi_g), cos(phi_g)*sin(theta_g);
+        sin(phi_g)*cos(theta_g),  cos(phi_g), sin(phi_g)*sin(theta_g);
+       -sin(theta_g),                 0,       cos(theta_g)];
+R_gimbal_w = R_bw * R_gb;
+gimbal_global_roll = atan2(R_gimbal_w(3,2), R_gimbal_w(3,3));
+
+% Call the controller to get the control input u
+u = dfl_controller(t, state, xd, vd, ad, jd, sd, psid, fw_state, dfl_gains);
+
+% --- REALISTIC CONSTRAINTS ---
+% Maximum and minimum thrust in Newtons
+%max_thrust = 1500.0; % Corresponds to a thrust-to-weight ratio of ~3.3 for 0.468kg drone
+%min_thrust = 0.0;
+
+% Maximum roll, pitch, and yaw torques in N*m
+%max_roll_torque = 10000.5;
+%max_pitch_torque = 1000.5;
+%max_yaw_torque = 1000.2;
+
+% Saturate the control inputs
+%u(1) = max(min(u(1), max_thrust), min_thrust); % Saturate xi_dot (related to thrust)
+%u(2) = max(min(u(2), max_roll_torque), -max_roll_torque);   % Saturate roll torque
+%u(3) = max(min(u(3), max_pitch_torque), -max_pitch_torque); % Saturate pitch torque
+%u(4) = max(min(u(4), max_yaw_torque), -max_yaw_torque);     % Saturate yaw torque
+% --- END REALISTIC CONSTRAINTS ---
 
 % Dynamics
 F_thrust = R_bw * [0; 0; zeta];
@@ -52,5 +113,13 @@ state_dot(14) = phi_g_dot;
 state_dot(15) = theta_g_dot;
 state_dot(16) = zeta_dot;
 state_dot(17) = xi_dot;
+
+% Store history
+
+%gimbal_global_roll = phi_g;
+
+history(end+1, :) = [t, zeta, u(2), u(3), u(4), omega_b', u(5), u(6), gimbal_global_roll, corrected_roll, corrected_pitch, corrected_yaw];
+
+fprintf('Gimbal Local Roll Angle (phi_g): %f, Gimbal Global Roll Angle: %f\n', phi_g, gimbal_global_roll);
 
 end
