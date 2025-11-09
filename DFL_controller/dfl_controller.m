@@ -117,8 +117,9 @@ v_pos = sd - c3*(j - jd) - c2*(a_ - ad) - c1*(v_w - vd) - c0*(x_w - xd);
 
 % Enhanced yaw control with feedforward
 drone_yaw = eul_drone(1);
-yaw_error = wrapToPi(drone_yaw - psid);
-v_yaw = psid_dot - c5*(vpsi - psid_dot) - c4*yaw_error;
+yaw_error = wrapToPi(drone_yaw - 0.0);
+%v_yaw = 0.0 * psid_dot - c5*(vpsi - psid_dot) - c4*yaw_error;
+v_yaw =   - c5*(vpsi - psid_dot) - c4*yaw_error;
 
 % For the gimbal: compute relative orientation accounting for yaw tracking
 % Build rotation matrix for fixed-wing using MATLAB's built-in function
