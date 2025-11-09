@@ -1,5 +1,5 @@
 %% Simulation parameters
-t_end = 2.0;         % End time of the simulation (s)
+t_end = 0.7;         % End time of the simulation (s)
 delta_t = 0.01;     % Time step for the simulation (s)
 t_sim = 0:delta_t:t_end; % Time vector for the simulation
 
@@ -73,3 +73,21 @@ dfl_gains.c_phi = 1.0;      % Proportional gain for gimbal roll
 dfl_gains.c_theta = 10.0;    % Proportional gain for gimbal pitch
 dfl_gains.c_ff_phi = 1.0;      % Feedforward gain for gimbal roll
 dfl_gains.c_ff_theta = 1.0;    % Feedforward gain for gimbal pitch
+
+controller_type = 'MPC'; % 'DFL' or 'MPC'
+
+% MPC Gains
+if strcmp(controller_type, 'MPC')
+    gains.Q = 100 * diag([ ...
+        1000, 1000, 1000, ...       % Position
+        1, 1, 1, ...       % Quaternion
+        1, 1, 1, ...       % Velocity
+        1, 1, 1, ...       % Angular velocity
+        1000, 1000 ...           % Gimbal angles
+    ]);
+    gains.R = diag([ ...
+        0.1, ...           % Thrust
+        0.1, 0.1, 0.1, ... % Torques
+        0.001, 0.001 ...       % Gimbal rates
+    ]);
+end

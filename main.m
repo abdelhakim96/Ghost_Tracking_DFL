@@ -3,14 +3,18 @@
 close all
 clear all;
 clc;
+addpath('/home/airlab/casadi-3.7.2-linux64-matlab2018b')
+savepath
+
 
 % Select the configuration file to use
 % 'loop', 'roll', or 'straight'
-config_to_run = 'roll';
+config_to_run = 'straight';
 
 run(['trajectory_configs/config_' config_to_run '.m']);
 
 addpath('DFL_controller');
+addpath('MPC_controller');
 addpath('models');
 addpath('utilities');
 addpath('trajectory_configs');
@@ -43,10 +47,9 @@ p_quad = quad_initial.ang_vel(1); q_quad = quad_initial.ang_vel(2); r_quad = qua
 eul = [quad_initial.angle(3), quad_initial.angle(2), quad_initial.angle(1)]; % [psi, theta, phi]
 quat_quad = eul2quat(eul, 'ZYX');
 
-zeta = quad_params.m*quad_params.g; xi = 0;
 phi_g = quad_initial.relative_angle(1); theta_g = quad_initial.relative_angle(2);
 % phi_g_dot and theta_g_dot are no longer states
-quad_initial_state = [x0_quad; y0_quad; z0_quad; quat_quad(1); quat_quad(2); quat_quad(3); quat_quad(4); u0_quad; v0_quad; w0_quad; p_quad; q_quad; r_quad; phi_g; theta_g; zeta; xi];
+quad_initial_state = [x0_quad; y0_quad; z0_quad; quat_quad(1); quat_quad(2); quat_quad(3); quat_quad(4); u0_quad; v0_quad; w0_quad; p_quad; q_quad; r_quad; phi_g; theta_g];
 
 % Combined state vector
 initial_state = [quad_initial_state; fw_x0];
@@ -55,7 +58,7 @@ initial_state = [quad_initial_state; fw_x0];
 clear unified_dynamics; % Clear persistent variables
 clear quadrotor_dynamics_realtime; % Clear persistent variables
 ode_options = odeset('RelTol', 1e-4, 'AbsTol', 1e-4);
-[t, state] = ode15s(@(t,s) unified_dynamics(t, s, fw_params, fw_controls, dfl_gains), t_sim, initial_state, ode_options);
+[t, state] = ode15s(@(t,s) unified_dynamics(t, s, fw_params, fw_controls, gains, controller_type), t_sim, initial_state, ode_options);
 
 %% Post-processing and Plotting
 run('utilities/plot_results.m');

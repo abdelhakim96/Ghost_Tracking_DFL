@@ -1,4 +1,4 @@
-function state_dot = quadrotor_dynamics_realtime(t, state, xd, vd, ad, jd, sd, psid, fw_state, dfl_gains)
+function state_dot = quadrotor_dynamics_realtime(t, state, xd, vd, ad, jd, sd, psid, fw_state, gains, controller_type)
 % This function defines the dynamics of the quadrotor.
 % The controller is now in a separate file: DFL_controller/dfl_controller.m
 
@@ -17,15 +17,13 @@ end
 % Define global variables
 global m Ix Iy Iz g
 
-% Unpack the state vector (17 states for 1st order gimbal)
+% Unpack the state vector (15 states for direct thrust control)
 x_w = state(1:3);       % Position in World Frame [N, E, D]
 q_bw = state(4:7);      % Quaternion from Body to World [q0, q1, q2, q3]
 v_w = state(8:10);      % Velocity in World Frame
 omega_b = state(11:13); % Angular velocity in Body Frame [p, q, r]
 phi_g = state(14);      % Gimbal roll
 theta_g = state(15);    % Gimbal pitch
-zeta = state(16);       % Total thrust
-xi = state(17);         % Derivative of total thrust
 
 % Normalize the quaternion
 q_bw = q_bw / (norm(q_bw) + 1e-9);
@@ -60,14 +58,21 @@ corrected_yaw = correctAngleJump(yaw, previous_yaw);
 % --- End Angle Jump Correction ---
 
 % Calculate gimbal's orientation in world frame for debugging
-R_gb = [cos(phi_g)*cos(theta_g), -sin(phi_g), cos(phi_g)*sin(theta_g);
-        sin(phi_g)*cos(theta_g),  cos(phi_g), sin(phi_g)*sin(theta_g);
-       -sin(theta_g),                 0,       cos(theta_g)];
+% Standard roll-pitch gimbal (Y-X rotation)
+R_gb = [cos(theta_g), sin(theta_g)*sin(phi_g), sin(theta_g)*cos(phi_g);
+        0, cos(phi_g), -sin(phi_g);
+        -sin(theta_g), cos(theta_g)*sin(phi_g), cos(theta_g)*cos(phi_g)];
 R_gimbal_w = R_bw * R_gb;
 gimbal_global_roll = atan2(R_gimbal_w(3,2), R_gimbal_w(3,3));
 
 % Call the controller to get the control input u
-u = dfl_controller(t, state, xd, vd, ad, jd, sd, psid, fw_state, dfl_gains);
+if strcmp(controller_type, 'DFL')
+    u = dfl_controller(t, state, xd, vd, ad, jd, sd, psid, fw_state, gains);
+elseif strcmp(controller_type, 'MPC')
+    u = mpc_controller(t, state, xd, vd, ad, jd, sd, psid, fw_state, gains);
+else
+    error('Invalid controller type specified.');
+end
 
 % --- REALISTIC CONSTRAINTS ---
 % Maximum and minimum thrust in Newtons
@@ -80,15 +85,15 @@ u = dfl_controller(t, state, xd, vd, ad, jd, sd, psid, fw_state, dfl_gains);
 %max_yaw_torque = 1000.2;
 
 % Saturate the control inputs
-%u(1) = max(min(u(1), max_thrust), min_thrust); % Saturate xi_dot (related to thrust)
+%u(1) = max(min(u(1), max_thrust), min_thrust); % Saturate total thrust
 %u(2) = max(min(u(2), max_roll_torque), -max_roll_torque);   % Saturate roll torque
 %u(3) = max(min(u(3), max_pitch_torque), -max_pitch_torque); % Saturate pitch torque
 %u(4) = max(min(u(4), max_yaw_torque), -max_yaw_torque);     % Saturate yaw torque
 % --- END REALISTIC CONSTRAINTS ---
 
 % Dynamics
-F_thrust = R_bw * [0; 0; zeta];
-a_ = (F_thrust/m) - [0; 0; g];
+F_thrust = R_bw * [0; 0; u(1)]; % u(1) is now total thrust
+a_ = (F_thrust/m) + [0; 0; g];
 
 % State Derivatives
 x_dot = v_w;
@@ -97,29 +102,25 @@ v_dot = a_;
 omega_dot = [ (u(2)/Ix) + (omega_b(2)*omega_b(3)*(Iy - Iz))/Ix;
               (u(3)/Iy) - (omega_b(1)*omega_b(3)*(Ix - Iz))/Iy;
               (u(4)/Iz) + (omega_b(1)*omega_b(2)*(Ix - Iy))/Iz ];
-zeta_dot = xi;
-xi_dot = u(1);
 
 % Gimbal dynamics (first-order)
 phi_g_dot = u(5);
 theta_g_dot = u(6);
 
-% Assemble state derivative vector (17 states)
-state_dot = zeros(17,1);
+% Assemble state derivative vector (15 states)
+state_dot = zeros(15,1);
 state_dot(1:3) = x_dot;
 state_dot(4:7) = q_dot;
 state_dot(8:10) = v_dot;
 state_dot(11:13) = omega_dot;
 state_dot(14) = phi_g_dot;
 state_dot(15) = theta_g_dot;
-state_dot(16) = zeta_dot;
-state_dot(17) = xi_dot;
 
 % Store history
 
 %gimbal_global_roll = phi_g;
 
-history(end+1, :) = [t, zeta, u(2), u(3), u(4), omega_b', u(5), u(6), gimbal_global_roll, corrected_roll, corrected_pitch, corrected_yaw];
+history(end+1, :) = [t, u(1), u(2), u(3), u(4), omega_b', u(5), u(6), gimbal_global_roll, corrected_roll, corrected_pitch, corrected_yaw];
 
 fprintf('Gimbal Local Roll Angle (phi_g): %f, Gimbal Global Roll Angle: %f\n', phi_g, gimbal_global_roll);
 

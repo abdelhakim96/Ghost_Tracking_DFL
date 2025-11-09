@@ -79,19 +79,40 @@ fw_controls.elevator = elevator_input;
 fw_controls.rudder = zeros(size(t_sim));        % No yaw input
 
 
+% Controller Selection
+controller_type = 'MPC'; % 'DFL' or 'MPC'
 
-% Position and Yaw Gains (Tuned for Yaw Priority)
-% Yaw Gains (Fastest)
-dfl_gains.c4 = 80.0;   % Yaw gain
-dfl_gains.c5 = 15.0;    % Yaw rate gain
-% Position Gains (Medium)
-dfl_gains.c0 = 25.0;  % Position gain
-dfl_gains.c1 = 15.0;  % Velocity gain
-dfl_gains.c2 = 10.0;   % Acceleration gain
-dfl_gains.c3 = 10.0;    % Jerk gain (usually kept constant)
+% DFL Gains
+if strcmp(controller_type, 'DFL')
+    % Position and Yaw Gains (Tuned for Yaw Priority)
+    % Yaw Gains (Fastest)
+    gains.c4 = 80.0;   % Yaw gain
+    gains.c5 = 15.0;    % Yaw rate gain
+    % Position Gains (Medium)
+    gains.c0 = 25.0;  % Position gain
+    gains.c1 = 15.0;  % Velocity gain
+    gains.c2 = 10.0;   % Acceleration gain
+    gains.c3 = 10.0;    % Jerk gain (usually kept constant)
 
-% Gimbal Gains (Slowest)
-dfl_gains.c_phi = 5.0;      % Proportional gain for gimbal roll
-dfl_gains.c_theta = 5.0;    % Proportional gain for gimbal pitch
-dfl_gains.c_ff_phi = 1.0;      % Feedforward gain for gimbal roll
-dfl_gains.c_ff_theta = 1.0;    % Feedforward gain for gimbal pitch
+    % Gimbal Gains (Slowest)
+    gains.c_phi = 5.0;      % Proportional gain for gimbal roll
+    gains.c_theta = 5.0;    % Proportional gain for gimbal pitch
+    gains.c_ff_phi = 1.0;      % Feedforward gain for gimbal roll
+    gains.c_ff_theta = 1.0;    % Feedforward gain for gimbal pitch
+end
+
+% MPC Gains
+if strcmp(controller_type, 'MPC')
+    gains.Q = diag([ ...
+        10, 10, 10, ...    % Position
+        5, 5, 5, ...       % Quaternion
+        2, 2, 2, ...       % Velocity
+        1, 1, 1, ...       % Angular velocity
+        1, 1 ...           % Gimbal angles
+    ]);
+    gains.R = diag([ ...
+        0.1, ...           % Thrust
+        0.1, 0.1, 0.1, ... % Torques
+        0.1, 0.1 ...       % Gimbal rates
+    ]);
+end

@@ -74,3 +74,12 @@ dfl_gains.c_phi = 1.0;      % Proportional gain for gimbal roll
 dfl_gains.c_theta = 10.0;    % Proportional gain for gimbal pitch
 dfl_gains.c_ff_phi = 1.0;      % Feedforward gain for gimbal roll
 dfl_gains.c_ff_theta = 1.0;    % Feedforward gain for gimbal pitch
+
+
+
+% MPC Gains
+if strcmp(controller_type, 'MPC')
+    % TODO: Define MPC gains here
+    gains.Q = 100 * diag([10, 10, 10, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]);
+    gains.R = diag([0.1, 0.1, 0.1, 0.1, 0.1, 0.1]);
+end

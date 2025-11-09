@@ -2,8 +2,8 @@
 set(0, 'DefaultFigureWindowStyle', 'docked'); % or 'normal' for floating windows
 
 % Unpack states
-quad_state = state(:, 1:17);
-fw_state = state(:, 18:30);
+quad_state = state(:, 1:15);
+fw_state = state(:, 16:28);
 
 % Create results directory if it doesn't exist
 if ~exist('results', 'dir')
