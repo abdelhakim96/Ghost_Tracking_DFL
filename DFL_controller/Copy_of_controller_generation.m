@@ -85,7 +85,7 @@ y_out_drone = [
     x0;                             % x position
     y0;                             % y position
     z0;                             % z position
-    atan2(2*(q1*q2 + q0*q3), q0^2 + q1^2 - q2^2 - q3^2)]; % Correct yaw angle
+    2*atan2(q3, q0)];              % Yaw angle (no singularities)
 
 fprintf('Outputs: [x, y, z, yaw]\n');
 fprintf('Controls: [thrust_accel, roll_moment, pitch_moment, yaw_moment]\n\n');
