@@ -69,6 +69,23 @@ gimbal_global_roll = atan2(R_gimbal_w(3,2), R_gimbal_w(3,3));
 % Call the controller to get the control input u
 u = dfl_controller(t, state, xd, vd, ad, jd, sd, psid, fw_state, dfl_gains);
 
+% --- REALISTIC CONSTRAINTS ---
+% Maximum and minimum thrust in Newtons
+%max_thrust = 1500.0; % Corresponds to a thrust-to-weight ratio of ~3.3 for 0.468kg drone
+%min_thrust = 0.0;
+
+% Maximum roll, pitch, and yaw torques in N*m
+%max_roll_torque = 10000.5;
+%max_pitch_torque = 1000.5;
+%max_yaw_torque = 1000.2;
+
+% Saturate the control inputs
+%u(1) = max(min(u(1), max_thrust), min_thrust); % Saturate xi_dot (related to thrust)
+%u(2) = max(min(u(2), max_roll_torque), -max_roll_torque);   % Saturate roll torque
+%u(3) = max(min(u(3), max_pitch_torque), -max_pitch_torque); % Saturate pitch torque
+%u(4) = max(min(u(4), max_yaw_torque), -max_yaw_torque);     % Saturate yaw torque
+% --- END REALISTIC CONSTRAINTS ---
+
 % Dynamics
 F_thrust = R_bw * [0; 0; zeta];
 a_ = (F_thrust/m) - [0; 0; g];

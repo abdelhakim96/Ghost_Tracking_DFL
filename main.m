@@ -55,7 +55,7 @@ initial_state = [quad_initial_state; fw_x0];
 clear unified_dynamics; % Clear persistent variables
 clear quadrotor_dynamics_realtime; % Clear persistent variables
 ode_options = odeset('RelTol', 1e-4, 'AbsTol', 1e-4);
-[t, state] = ode45(@(t,s) unified_dynamics(t, s, fw_params, fw_controls, dfl_gains), t_sim, initial_state, ode_options);
+[t, state] = ode15s(@(t,s) unified_dynamics(t, s, fw_params, fw_controls, dfl_gains), t_sim, initial_state, ode_options);
 
 %% Post-processing and Plotting
 run('utilities/plot_results.m');

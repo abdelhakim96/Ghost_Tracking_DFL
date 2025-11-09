@@ -31,6 +31,26 @@ R = [q0^2+q1^2-q2^2-q3^2, 2*(q1*q2-q0*q3), 2*(q1*q3+q0*q2);
      2*(q1*q2+q0*q3), q0^2-q1^2+q2^2-q3^2, 2*(q2*q3-q0*q1);
      2*(q1*q3-q0*q2), 2*(q2*q3+q0*q1), q0^2-q1^2-q2^2+q3^2];
 
+%% Gimbal rotation matrix (Body to Gimbal)
+% Assuming Roll (X) then Pitch (Y) rotation
+Rx_g = [1, 0, 0;
+        0, cos(phi_g), -sin(phi_g);
+        0, sin(phi_g), cos(phi_g)];
+
+Ry_g = [cos(theta_g), 0, sin(theta_g);
+        0, 1, 0;
+        -sin(theta_g), 0, cos(theta_g)];
+
+R_g = Ry_g * Rx_g;
+
+%% World to Gimbal rotation matrix
+R_wg = R * R_g;
+
+%% Extract world frame gimbal Euler angles
+% Using atan2 for robustness
+phi_wg = atan2(R_wg(3,2), R_wg(3,3));
+theta_wg = asin(-R_wg(3,1));
+
 %% State vector
 x_bar = [x0; y0; z0;                % Position (3)
          q0; q1; q2; q3;            % Drone quaternion (4)
@@ -96,8 +116,8 @@ y_out = [
     y0;                 % y position
     z0;                 % z position
     2*(q1*q2+q0*q3);    % yaw control via rotation matrix element
-    phi_g;              % gimbal roll angle
-    theta_g];           % gimbal pitch angle
+    R_wg(3,2);          % Simplified gimbal roll output
+    -R_wg(3,1)];        % Simplified gimbal pitch output
 
 hx = y_out;
 
@@ -166,16 +186,27 @@ fprintf('Computing control laws...\n');
 
 % Linearizing control law: u = alpha(x) + beta(x)*v
 % Using pseudo-inverse for robustness, as recommended.
-alphax = simplify(-pinv(deltax) * bx);
-betax = simplify(pinv(deltax));
+alphax = -deltax \ bx;   % Equivalent to inv(deltax)*bx but more stable
+betax = inv(deltax);
+
+
+%% Substitute numeric values for faster computation
+param_symbols = [m, Ix, Iy, Iz];
+param_values = [0.468, 0.0023, 0.0023, 0.0046];
+
+alphax_num = subs(alphax, param_symbols, param_values);
+betax_num = subs(betax, param_symbols, param_values);
+
+alphax_simplified = simplify(alphax_num);
+betax_simplified = simplify(betax_num);
 
 %% Generate MATLAB functions
 fprintf('Generating MATLAB functions...\n');
 
-matlabFunction(alphax, 'File', 'alpha_gimbal_func', 'Vars', ...
-    {x_bar, Ap, Aq, Ar, Ag_p, Ag_q, Ix, Iy, Iz, Ig_x, Ig_y, zeta, xi, m}, 'Outputs', {'alpha_val'});
-matlabFunction(betax, 'File', 'beta_gimbal_func', 'Vars', ...
-    {x_bar, Ap, Aq, Ar, Ag_p, Ag_q, Ix, Iy, Iz, Ig_x, Ig_y, zeta, xi, m}, 'Outputs', {'beta_val'});
+matlabFunction(alphax_simplified, 'File', 'alpha_gimbal_func', 'Vars', ...
+    {x_bar, Ap, Aq, Ar, Ag_p, Ag_q, Ig_x, Ig_y, zeta, xi}, 'Outputs', {'alpha_val'});
+matlabFunction(betax_simplified, 'File', 'beta_gimbal_func', 'Vars', ...
+    {x_bar, Ap, Aq, Ar, Ag_p, Ag_q, Ig_x, Ig_y, zeta, xi}, 'Outputs', {'beta_val'});
 
 fprintf('Done! Generated alpha_gimbal_func.m and beta_gimbal_func.m\n');
 fprintf('\nState vector size: %d states\n', length(x_bar));

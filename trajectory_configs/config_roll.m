@@ -1,5 +1,5 @@
 %% Simulation parameters
-t_end = 2.4;         % End time of the simulation (s)
+t_end = 0.5;         % End time of the simulation (s)
 delta_t = 0.01;     % Time step for the simulation (s)
 t_sim = 0:delta_t:t_end; % Time vector for the simulation
 
@@ -35,7 +35,7 @@ fw_params.g = 9.81; % gravity, m/s^2
 fw_params.CL0 = 0.4; fw_params.CL_alpha = 5.7; fw_params.CL_q = 7.0; fw_params.CL_de = -0.8;
 fw_params.CD0 = 0.04; fw_params.k = 0.05; fw_params.CDa = 0.1; fw_params.CD_q = 0.0; fw_params.CD_de = 0.0;
 fw_params.CY_beta = -1.2; fw_params.CY_p = -0.1; fw_params.CY_r = 0.2; fw_params.CY_da = 0.2; fw_params.CY_dr = -0.2;
-fw_params.Cl_beta = -0.15; fw_params.Cl_p = -1.0; fw_params.Cl_r = 0.25; fw_params.Cl_da = 0.5; fw_params.Cl_dr = 0.05;
+fw_params.Cl_beta = -0.15; fw_params.Cl_p = -1.0; fw_params.Cl_r = 0.25; fw_params.Cl_da = 0.7; fw_params.Cl_dr = 0.05;
 fw_params.Cm0 = 0.0; fw_params.Cm_alpha = -1.5; fw_params.Cm_q = -15.0; fw_params.Cm_de = -1.8;
 fw_params.Cn_beta = 0.15; fw_params.Cn_p = -0.1; fw_params.Cn_r = -0.4; fw_params.Cn_da = 0.04; fw_params.Cn_dr = -0.1;
 
@@ -60,7 +60,7 @@ fw_controls.thrust = 100 * ones(size(t_sim));      % Reset thrust to original va
 
 % Coordinated barrel roll maneuver
 roll_start_time = 0.0; % s
-roll_duration = 1.0; % s, longer duration for a wider barrel roll
+roll_duration = 3.0; % s, longer duration for a wider barrel roll
 roll_end_time = roll_start_time + roll_duration;
 
 % Aileron input (sine pulse for one full roll)
@@ -80,17 +80,18 @@ fw_controls.rudder = zeros(size(t_sim));        % No yaw input
 
 
 
-% Position and Yaw Gains
-dfl_gains.c0 = 23250.0;  % Position gain
-dfl_gains.c1 = 23400.0;  % Velocity gain
-dfl_gains.c2 = 500.0;   % Acceleration gain
-dfl_gains.c3 = 200.0;    % Jerk gain
-dfl_gains.c4 = 10.0;   % Yaw gain
-dfl_gains.c5 = 0.0;    % Yaw rate gain
+% Position and Yaw Gains (Tuned for Yaw Priority)
+% Yaw Gains (Fastest)
+dfl_gains.c4 = 80.0;   % Yaw gain
+dfl_gains.c5 = 15.0;    % Yaw rate gain
+% Position Gains (Medium)
+dfl_gains.c0 = 25.0;  % Position gain
+dfl_gains.c1 = 15.0;  % Velocity gain
+dfl_gains.c2 = 10.0;   % Acceleration gain
+dfl_gains.c3 = 10.0;    % Jerk gain (usually kept constant)
 
-% Gimbal Gains
-dfl_gains.c_phi = 0.0;      % Proportional gain for gimbal roll
-dfl_gains.c_theta = 0.0;    % Proportional gain for gimbal pitch
-dfl_gains.c_ff_phi = 0.0;      % Feedforward gain for gimbal roll
-dfl_gains.c_ff_theta = 0.0;    % Feedforward gain for gimbal pitch
-
+% Gimbal Gains (Slowest)
+dfl_gains.c_phi = 5.0;      % Proportional gain for gimbal roll
+dfl_gains.c_theta = 5.0;    % Proportional gain for gimbal pitch
+dfl_gains.c_ff_phi = 1.0;      % Feedforward gain for gimbal roll
+dfl_gains.c_ff_theta = 1.0;    % Feedforward gain for gimbal pitch

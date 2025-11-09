@@ -117,55 +117,47 @@ v_pos = sd - c3*(j - jd) - c2*(a_ - ad) - c1*(v_w - vd) - c0*(x_w - xd);
 
 % Enhanced yaw control with feedforward
 drone_yaw = eul_drone(1);
-yaw_error = wrapToPi(drone_yaw - 0.0);
+yaw_error = wrapToPi(drone_yaw - psid);
 %v_yaw = 0.0 * psid_dot - c5*(vpsi - psid_dot) - c4*yaw_error;
 v_yaw =   - c5*(vpsi - psid_dot) - c4*yaw_error;
 
-% For the gimbal: compute relative orientation accounting for yaw tracking
-% Build rotation matrix for fixed-wing using MATLAB's built-in function
-R_fw_w = quat2rotm(q_fw');
+% --- GIMBAL CONTROL IN WORLD FRAME ---
 
-% --- Robust Error Calculation using Rotation Matrices ---
-% The desired gimbal orientation should align the drone's body frame with the fixed-wing's frame.
-% R_gw_desired = R_fw_w. Since R_gw = R_bw * R_gb, we have R_bw * R_gb_desired = R_fw_w.
-% So, the desired gimbal rotation relative to the drone body is R_gb_desired = R_bw' * R_fw_w.
-R_gb_desired = R_bw' * R_fw_w;
+% Gimbal rotation matrix (Body to Gimbal)
+Rx_g = [1, 0, 0; 0, cos(phi_g), -sin(phi_g); 0, sin(phi_g), cos(phi_g)];
+Ry_g = [cos(theta_g), 0, sin(theta_g); 0, 1, 0; -sin(theta_g), 0, cos(theta_g)];
+R_gb = Ry_g * Rx_g; % Note: This is R_gb (Gimbal frame relative to Body frame)
 
-% Extract desired gimbal angles from the rotation matrix using the 'ZYX' convention.
-eul_gb_desired = rotm2eul(R_gb_desired, 'ZYX');
-% The output is [yaw, pitch, roll].
-theta_g_ref_raw = eul_gb_desired(2); % Pitch
-phi_g_ref_raw = eul_gb_desired(3);   % Roll
+% World to Gimbal rotation matrix
+R_wg = R_bw * R_gb;
 
-% --- Reference Angle Unwrapping and Singularity Avoidance ---
+% Extract current world frame gimbal Euler angles
+eul_wg = rotm2eul(R_wg, 'ZYX'); % [yaw, pitch, roll]
+phi_wg = eul_wg(3);
+theta_wg = eul_wg(2);
+
+% Desired gimbal orientation is the fixed-wing's orientation
+phi_g_ref = fw_roll;
+theta_g_ref = fw_pitch;
+
+% Desired gimbal rates are the fixed-wing's world-frame angular rates
+% We already computed eul_fw_rates which contains [yaw_rate, pitch_rate, roll_rate]
+phi_g_ref_dot = -eul_fw_rates(1);
+theta_g_ref_dot = eul_fw_rates(2);
+
+% --- Reference Angle Unwrapping ---
 if isempty(last_phi_g_ref)
-    last_phi_g_ref = phi_g_ref_raw;
-    last_theta_g_ref = theta_g_ref_raw;
+    last_phi_g_ref = phi_g_ref;
+    last_theta_g_ref = theta_g_ref;
 end
+phi_g_ref_unwrapped = unwrapAngle(phi_g_ref, last_phi_g_ref);
+last_phi_g_ref = phi_g_ref_unwrapped;
+theta_g_ref_unwrapped = unwrapAngle(theta_g_ref, last_theta_g_ref);
+last_theta_g_ref = theta_g_ref_unwrapped;
 
-% Use the utility function to unwrap the gimbal roll reference angle
-phi_g_ref = unwrapAngle(phi_g_ref_raw, last_phi_g_ref);
-last_phi_g_ref = phi_g_ref; % Update for next iteration's unwrap
-
-% Use the utility function to unwrap the gimbal pitch reference angle
-theta_g_ref = unwrapAngle(theta_g_ref_raw, last_theta_g_ref);
-last_theta_g_ref = theta_g_ref; % Update for next iteration's unwrap
-
-% --- Calculate desired gimbal rates from relative angular velocity ---
-% Transform fixed-wing angular velocity to drone body frame
-omega_fw_in_b = R_gb_desired * fw_omega_b;
-
-% Calculate relative angular velocity
-omega_rel_b = omega_fw_in_b - omega_b;
-
-% Use the first two components as desired gimbal rates (feedforward term)
-phi_g_ref_dot = omega_rel_b(1);   % Desired roll rate
-theta_g_ref_dot = omega_rel_b(2); % Desired pitch rate
-
-
-% Virtual control for gimbal with feedforward
-phi_g_error = wrapToPi(phi_g - phi_g_ref);
-theta_g_error = wrapToPi(theta_g - theta_g_ref);
+% Virtual control for gimbal with feedforward in the world frame
+phi_g_error = wrapToPi(phi_wg - phi_g_ref_unwrapped);
+theta_g_error = wrapToPi(theta_wg - theta_g_ref_unwrapped);
 v_phi = -c_phi * phi_g_error + c_ff_phi * phi_g_ref_dot;
 v_theta = -c_theta * theta_g_error + c_ff_theta * theta_g_ref_dot;
 
@@ -183,8 +175,8 @@ Ig_x = 0.001; % Kept for function signature compatibility
 Ig_y = 0.001; % Kept for function signature compatibility
 
 % Feedback linearization using the newly generated functions
-alpha_val = alpha_gimbal_func(state, 0, 0, 0, Ag_p, Ag_q, Ix, Iy, Iz, Ig_x, Ig_y, zeta, xi, m);
-beta_val = beta_gimbal_func(state, 0, 0, 0, Ag_p, Ag_q, Ix, Iy, Iz, Ig_x, Ig_y, zeta, xi, m);
+alpha_val = alpha_gimbal_func(state, 0, 0, 0, Ag_p, Ag_q, Ig_x, Ig_y, zeta, xi);
+beta_val = beta_gimbal_func(state, 0, 0, 0, Ag_p, Ag_q, Ig_x, Ig_y, zeta, xi);
 u = alpha_val + beta_val * v;
 
 end
