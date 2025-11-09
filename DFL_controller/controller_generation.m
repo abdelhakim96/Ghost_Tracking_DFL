@@ -115,7 +115,7 @@ y_out = [
     x0;                 % x position
     y0;                 % y position
     z0;                 % z position
-    2*(q1*q2+q0*q3);    % yaw control via rotation matrix element
+    atan2(2*(q1*q2+q0*q3), q0^2+q1^2-q2^2-q3^2);    % yaw control via rotation matrix element
     R_wg(3,2);          % Simplified gimbal roll output
     -R_wg(3,1)];        % Simplified gimbal pitch output
 
