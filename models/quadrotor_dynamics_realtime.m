@@ -68,8 +68,15 @@ R_gb = [cos(phi_g)*cos(theta_g), -sin(phi_g), cos(phi_g)*sin(theta_g);
 R_gimbal_w = R_bw * R_gb;
 gimbal_global_roll = atan2(R_gimbal_w(3,2), R_gimbal_w(3,3));
 
-% Call the controller to get the control input u
-u = dfl_controller(t, state, xd, vd, ad, jd, sd, psid, fw_state, dfl_gains);
+% Separate the drone and gimbal states
+drone_state = [state(1:13); state(16:17)];
+gimbal_state = state(14:15);
+
+% Call the drone controller
+u_drone = dfl_controller(t, drone_state, xd, vd, ad, jd, sd, psid, fw_state, dfl_gains);
+
+% Call the gimbal controller
+u_gimbal = gimbal_controller(state, fw_state, dfl_gains);
 
 % Dynamics
 % Corrected thrust vector to point upwards (opposite to body Z-axis)
@@ -80,15 +87,15 @@ a_ = (F_thrust/m) - [0; 0; g];
 x_dot = v_w;
 q_dot = 0.5 * [-q1, -q2, -q3; q0, -q3, q2; q3, q0, -q1; -q2, q1, q0] * omega_b;
 v_dot = a_;
-omega_dot = [ (u(2)/Ix) + (omega_b(2)*omega_b(3)*(Iy - Iz))/Ix;
-              (u(3)/Iy) - (omega_b(1)*omega_b(3)*(Ix - Iz))/Iy;
-              (u(4)/Iz) + (omega_b(1)*omega_b(2)*(Ix - Iy))/Iz ];
+omega_dot = [ (u_drone(2)/Ix) + (omega_b(2)*omega_b(3)*(Iy - Iz))/Ix;
+              (u_drone(3)/Iy) - (omega_b(1)*omega_b(3)*(Ix - Iz))/Iy;
+              (u_drone(4)/Iz) + (omega_b(1)*omega_b(2)*(Ix - Iy))/Iz ];
 zeta_dot = xi;
-xi_dot = u(1);
+xi_dot = u_drone(1);
 
 % Gimbal dynamics (first-order)
-phi_g_dot = u(5);
-theta_g_dot = u(6);
+phi_g_dot = u_gimbal(1);
+theta_g_dot = u_gimbal(2);
 
 % Assemble state derivative vector (17 states)
 state_dot = zeros(17,1);
@@ -105,7 +112,7 @@ state_dot(17) = xi_dot;
 
 %gimbal_global_roll = phi_g;
 
-history(end+1, :) = [t, zeta, u(2), u(3), u(4), omega_b', u(5), u(6), gimbal_global_roll, corrected_roll, corrected_pitch, corrected_yaw];
+history(end+1, :) = [t, zeta, u_drone(2), u_drone(3), u_drone(4), omega_b', u_gimbal(1), u_gimbal(2), gimbal_global_roll, corrected_roll, corrected_pitch, corrected_yaw];
 
 fprintf('Gimbal Local Roll Angle (phi_g): %f, Gimbal Global Roll Angle: %f\n', phi_g, gimbal_global_roll);
 

@@ -14,15 +14,9 @@ syms p q r real % angular velocity of drone body
 syms m real % mass of the UAV
 syms Ix Iy Iz real % moments of inertia of the UAV
 
-% Gimbal states (using Euler angles directly) - First Order Model
-syms phi_g theta_g real % gimbal roll and pitch angles
-% phi_g_dot and theta_g_dot are now control inputs, not states.
-syms Ig_x Ig_y real % gimbal moments of inertia (kept for compatibility, but not used in 1st order dynamics)
-
 % Control and external inputs
 syms Ax Ay Az real % aerodynamic forces
 syms Ap Aq Ar real % aerodynamic moments
-syms Ag_p Ag_q real % gimbal aerodynamic moments
 syms g real % gravity constant
 syms zeta xi real % internal states for extended system (thrust)
 
@@ -36,9 +30,8 @@ x_bar = [x0; y0; z0;                % Position (3)
          q0; q1; q2; q3;            % Drone quaternion (4)
          u; v; w;                   % Velocity (3)
          p; q; r;                   % Drone angular velocity (3)
-         phi_g; theta_g;            % Gimbal angles (2)
          zeta; xi];                 % Extended integrators (2)
-                                    % Total: 17 states
+                                    % Total: 15 states
 
 %% Drone quaternion derivative
 q_dot_vec = 0.5 * [-q1, -q2, -q3; q0, -q3, q2; q3, q0, -q1; -q2, q1, q0] * [p; q; r];
@@ -62,25 +55,21 @@ fx_bar = [
     (Iy - Iz)/Ix*q*r + Ap/Ix;              % p_dot
     (Iz - Ix)/Iy*p*r + Aq/Iy;              % q_dot
     (Ix - Iy)/Iz*p*q + Ar/Iz;              % r_dot
-    0;                                      % phi_g_dot (now a control input)
-    0;                                      % theta_g_dot (now a control input)
     xi;                                     % zeta_dot
     0];                                     % xi_dot (control input)
 
 %% Control input matrix
 gx_bar = [
-    zeros(10, 6);                           % Position, quaternion, velocity
-    0, 1/Ix,    0,    0,    0,    0;  % p_dot (drone roll)
-    0,    0, 1/Iy,    0,    0,    0;  % q_dot (drone pitch)
-    0,    0,    0, 1/Iz,    0,    0;  % r_dot (drone yaw)
-    0,    0,    0,    0,    1,    0;  % phi_g_dot (gimbal roll rate)
-    0,    0,    0,    0,    0,    1;  % theta_g_dot (gimbal pitch rate)
-    zeros(1, 6);                            % zeta
-    1,    0,    0,    0,    0,    0]; % xi_dot (thrust control)
+    zeros(10, 4);                           % Position, quaternion, velocity
+    0, 1/Ix,    0,    0;        % p_dot (drone roll)
+    0,    0, 1/Iy,    0;        % q_dot (drone pitch)
+    0,    0,    0, 1/Iz;        % r_dot (drone yaw)
+    zeros(1, 4);                            % zeta
+    1,    0,    0,    0];       % xi_dot (thrust control)
 
 %% Full state-space dynamics with control inputs
-syms u1 u2 u3 u4 u5 u6 real % Define symbolic control inputs
-u_vec = [u1; u2; u3; u4; u5; u6]; % Control vector
+syms u1 u2 u3 u4 real % Define symbolic control inputs
+u_vec = [u1; u2; u3; u4]; % Control vector
 
 % x_dot = f(x) + g(x)*u
 x_dot_eqs = fx_bar + gx_bar * u_vec;
@@ -95,9 +84,7 @@ y_out = [
     x0;                 % x position
     y0;                 % y position
     z0;                 % z position
-    2*(q1*q2+q0*q3);    % yaw control via rotation matrix element
-    phi_g;              % gimbal roll angle
-    theta_g];           % gimbal pitch angle
+    2*(q1*q2+q0*q3)];    % yaw control via rotation matrix element
 
 hx = y_out;
 
@@ -172,13 +159,13 @@ betax = simplify(pinv(deltax));
 %% Generate MATLAB functions
 fprintf('Generating MATLAB functions...\n');
 
-matlabFunction(alphax, 'File', 'alpha_gimbal_func', 'Vars', ...
-    {x_bar, Ap, Aq, Ar, Ag_p, Ag_q, Ix, Iy, Iz, Ig_x, Ig_y, zeta, xi, m}, 'Outputs', {'alpha_val'});
-matlabFunction(betax, 'File', 'beta_gimbal_func', 'Vars', ...
-    {x_bar, Ap, Aq, Ar, Ag_p, Ag_q, Ix, Iy, Iz, Ig_x, Ig_y, zeta, xi, m}, 'Outputs', {'beta_val'});
+matlabFunction(alphax, 'File', 'alpha_func', 'Vars', ...
+    {x_bar, Ap, Aq, Ar, Ix, Iy, Iz, zeta, xi, m}, 'Outputs', {'alpha_val'});
+matlabFunction(betax, 'File', 'beta_func', 'Vars', ...
+    {x_bar, Ap, Aq, Ar, Ix, Iy, Iz, zeta, xi, m}, 'Outputs', {'beta_val'});
 
-fprintf('Done! Generated alpha_gimbal_func.m and beta_gimbal_func.m\n');
+fprintf('Done! Generated alpha_func.m and beta_func.m\n');
 fprintf('\nState vector size: %d states\n', length(x_bar));
 fprintf('Control vector size: %d inputs\n', size(gx_bar, 2));
 fprintf('Output vector size: %d outputs\n', length(hx));
-fprintf('Relative degrees: [%d, %d, %d, %d, %d, %d]\n', ri);
+fprintf('Relative degrees: [%d, %d, %d, %d]\n', ri);
