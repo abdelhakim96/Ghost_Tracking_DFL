@@ -136,6 +136,7 @@ fw_global_pitch_hist = zeros(length(t), 1);
 fw_global_yaw_hist = zeros(length(t), 1);
 drone_global_roll_hist = zeros(length(t), 1);
 drone_global_pitch_hist = zeros(length(t), 1);
+drone_global_yaw_hist = zeros(length(t), 1);
 last_phi_g_ref = 0; last_theta_g_ref = 0;
 
 % Initialize last angles for unwrapping
@@ -152,6 +153,7 @@ for i = 1:length(t)
             2*(q1*q3-q0*q2), 2*(q2*q3+q0*q1), q0^2-q1^2-q2^2+q3^2];
     drone_global_roll_hist(i) = atan2(2*(q0*q1 + q2*q3), 1 - 2*(q1^2 + q2^2));
     drone_global_pitch_hist(i) = asin(2*(q0*q2 - q3*q1));
+    drone_global_yaw_hist(i) = atan2(2*(q0*q3 + q1*q2), 1 - 2*(q2^2 + q3^2));
 
     q_fw = fw_state(i, 7:10);
     q0_fw=q_fw(1); q1_fw=q_fw(2); q2_fw=q_fw(3); q3_fw=q_fw(4);
@@ -204,6 +206,7 @@ fw_global_pitch_hist = neglectAngleJump(fw_global_pitch_hist);
 fw_global_yaw_hist = neglectAngleJump(fw_global_yaw_hist);
 drone_global_roll_hist = neglectAngleJump(drone_global_roll_hist);
 drone_global_pitch_hist = neglectAngleJump(drone_global_pitch_hist);
+drone_global_yaw_hist = neglectAngleJump(drone_global_yaw_hist);
 
 
 %% Combined Position and Orientation Plot
@@ -252,7 +255,7 @@ subplot(2,1,1);
 plot(t, x_quad(:,1), 'r', t, x_quad(:,2), 'g', t, -x_quad(:,3), 'b', 'LineWidth', 1.5);
 grid on; title('Drone Position'); xlabel('s'); ylabel('m'); legend('x','y','z');
 subplot(2,1,2);
-plot(t, gimbal_global_roll_hist*180/pi, 'r', t, gimbal_global_pitch_hist*180/pi, 'g', t, gimbal_global_yaw_hist*180/pi, 'b', 'LineWidth', 1.5);
+plot(t, drone_global_roll_hist*180/pi, 'r', t, drone_global_pitch_hist*180/pi, 'g', t, drone_global_yaw_hist*180/pi, 'b', 'LineWidth', 1.5);
 grid on; title('Drone Orientation'); xlabel('s'); ylabel('deg'); legend('Roll','Pitch','Yaw');
 saveas(fig_drone_state, [results_dir '/drone_state_' config_to_run '.pdf']);
 drawnow; figure(fig_drone_state); pause(0.1);
