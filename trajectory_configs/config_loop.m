@@ -1,5 +1,5 @@
 %% Simulation parameters
-t_end = 3.8;         % End time of the simulation (s)
+t_end = 4.5;         % End time of the simulation (s)
 delta_t = 0.01;     % Time step for the simulation (s)
 t_sim = 0:delta_t:t_end; % Time vector for the simulation
 
@@ -23,7 +23,7 @@ quad_params.b = 1e-5;       % Thrust factor
 % (No specific gimbal parameters were listed in the original file)
 
 %% Fixed-wing model parameters for Red Bull Air Race Plane (Edge 540)
-fw_params.m = 200; % mass, kg
+fw_params.m = 290; % mass, kg
 fw_params.J = diag([550, 750, 1100]); % inertia matrix, kg*m^2 (estimated)
 fw_params.S = 9.1; % wing area, m^2
 fw_params.b = 7.44; % wingspan, m
@@ -41,7 +41,7 @@ fw_params.Cn_beta = 0.15; fw_params.Cn_p = -0.1; fw_params.Cn_r = -0.4; fw_param
 
 %% Initial Conditions
 % Fixed-wing
-fw_initial.u0 = 40; 
+fw_initial.u0 = 80; 
 fw_initial.v0 = 0; 
 fw_initial.w0 = 0;
 fw_initial.x0 = [0; 0; -100; fw_initial.u0; fw_initial.v0; fw_initial.w0; 1; 0; 0; 0; 0; 0; 0]; % x, y, z, u, v, w, q0, q1, q2, q3, p, q, r
@@ -56,7 +56,7 @@ quad_initial.relative_angle = [0; 0; 0];    % Initial relative angle to the fixe
 
 %% Fixed-wing control inputs
 fw_controls.thrust = 340;      % Constant thrust (N)
-fw_controls.elevator = -0.1;   % Constant elevator deflection (rad)
+fw_controls.elevator = -0.25;   % Constant elevator deflection (rad)
 fw_controls.aileron = 0;       % No roll input
 fw_controls.rudder = 0;        % No yaw input
 
@@ -66,12 +66,12 @@ dfl_gains.c0 = 23250.0;  % Position gain
 dfl_gains.c1 = 23400.0;  % Velocity gain
 dfl_gains.c2 = 550.0;   % Acceleration gain
 dfl_gains.c3 = 100.0;    % Jerk gain
-dfl_gains.c4 = 50.0;   % Yaw gain
-dfl_gains.c5 = 10.0;    % Yaw rate gain
+dfl_gains.c4 = 1.0;   % Yaw gain
+dfl_gains.c5 = 0.0;    % Yaw rate gain
 
 % Gimbal Gains
 dfl_gains.c_phi = 0.0;      % Proportional gain for gimbal roll
 dfl_gains.c_theta = 0.0;    % Proportional gain for gimbal pitch
-dfl_gains.c_ff_phi = 0.0;      % Feedforward gain for gimbal roll
-dfl_gains.c_ff_theta = 0.0;    % Feedforward gain for gimbal pitch
+dfl_gains.c_ff_phi = 1.0;      % Feedforward gain for gimbal roll
+dfl_gains.c_ff_theta = 1.0;    % Feedforward gain for gimbal pitch
 
