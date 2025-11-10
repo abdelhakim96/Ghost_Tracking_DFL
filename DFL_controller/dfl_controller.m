@@ -91,22 +91,16 @@ fw_roll = eul_fw(3);
 % Extract fixed-wing angular velocity (body frame)
 fw_omega_b = fw_state(11:13);  % [p_fw, q_fw, r_fw]
 
-% Convert FW body rates to world frame yaw rate consistently
-phi_fw = fw_roll;
-theta_fw = fw_pitch;
+% --- Robust Yaw Rate Calculation using World-Frame Angular Velocity ---
+% Build rotation matrix for fixed-wing
+R_fw_w = quat2rotm(q_fw');
 
-% Full kinematic transformation from body rates to Euler rates
-T_inv_fw = [1, sin(phi_fw)*tan(theta_fw), cos(phi_fw)*tan(theta_fw);
-            0, cos(phi_fw),              -sin(phi_fw);
-            0, sin(phi_fw)/cos(theta_fw), cos(phi_fw)/cos(theta_fw)];
+% Transform the fixed-wing's body-frame angular velocity to the world frame
+omega_fw_w = R_fw_w * fw_omega_b;
 
-% Add a safeguard for the singularity at pitch = +/- 90 degrees
-if abs(cos(theta_fw)) < 1e-6
-    eul_fw_rates = [0; 0; 0]; % Avoid division by zero
-else
-    eul_fw_rates = T_inv_fw * fw_omega_b;
-end
-fw_yaw_rate = eul_fw_rates(1);
+% The desired yaw rate is the component of the world-frame angular velocity
+% along the world's vertical axis (the 3rd component in NED frame).
+fw_yaw_rate = omega_fw_w(3);
 
 % Update the desired yaw trajectory for the quadrotor
 psid = fw_yaw;           % Desired yaw angle
@@ -117,8 +111,8 @@ v_pos = sd - c3*(j - jd) - c2*(a_ - ad) - c1*(v_w - vd) - c0*(x_w - xd);
 
 % Enhanced yaw control with feedforward
 drone_yaw = eul_drone(1);
-yaw_error = wrapToPi(drone_yaw - psid);
-v_yaw = psid_dot - c5*(vpsi - psid_dot) - c4*yaw_error;
+yaw_error = wrapToPi(drone_yaw - fw_yaw);
+v_yaw = -c5 * (vpsi - psid_dot) - c4 * yaw_error;
 
 % For the gimbal: compute relative orientation accounting for yaw tracking
 % Build rotation matrix for fixed-wing using MATLAB's built-in function
@@ -169,8 +163,8 @@ v_phi = -c_phi * phi_g_error + c_ff_phi * phi_g_ref_dot;
 v_theta = -c_theta * theta_g_error + c_ff_theta * theta_g_ref_dot;
 
 
-%v_phi = 0.0;
-%v_theta = 0.0;
+v_phi = 0.0;
+v_theta = 0.0;
 
 % Combined virtual control vector
 v = [v_pos; v_yaw; v_phi; v_theta];

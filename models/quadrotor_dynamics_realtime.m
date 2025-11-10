@@ -37,10 +37,12 @@ R_bw = [q0^2+q1^2-q2^2-q3^2, 2*(q1*q2-q0*q3), 2*(q1*q3+q0*q2);
         2*(q1*q3-q0*q2), 2*(q2*q3+q0*q1), q0^2-q1^2-q2^2+q3^2];
 
 % --- Angle Jump Correction ---
-% Calculate Euler angles from quaternion
-roll = atan2(2*(q0*q1 + q2*q3), 1 - 2*(q1^2 + q2^2));
-pitch = asin(2*(q0*q2 - q3*q1));
-yaw = atan2(2*(q0*q3 + q1*q2), 1 - 2*(q2^2 + q3^2));
+% Calculate Euler angles from quaternion using MATLAB's built-in function
+% The 'ZYX' sequence gives [yaw, pitch, roll]
+eul = quat2eul([q0, q1, q2, q3], 'ZYX');
+yaw = eul(1);
+pitch = eul(2);
+roll = eul(3);
 
 % Get previous angles from history
 if isempty(history)
@@ -70,6 +72,7 @@ gimbal_global_roll = atan2(R_gimbal_w(3,2), R_gimbal_w(3,3));
 u = dfl_controller(t, state, xd, vd, ad, jd, sd, psid, fw_state, dfl_gains);
 
 % Dynamics
+% Corrected thrust vector to point upwards (opposite to body Z-axis)
 F_thrust = R_bw * [0; 0; zeta];
 a_ = (F_thrust/m) - [0; 0; g];
 

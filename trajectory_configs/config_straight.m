@@ -22,22 +22,22 @@ quad_params.b = 1e-5;       % Thrust factor
 % Gimbal parameters
 % (No specific gimbal parameters were listed in the original file)
 
-%% Fixed-wing model parameters
-fw_params.m = 13.5; % mass, kg
-fw_params.J = diag([0.8244, 1.135, 1.759]); % inertia matrix, kg*m^2
-fw_params.S = 0.55; % wing area, m^2
-fw_params.b = 2.8956; % wingspan, m
-fw_params.c = 0.18994; % mean aerodynamic chord, m
+%% Fixed-wing model parameters for Red Bull Air Race Plane (Edge 540)
+fw_params.m = 190; % mass, kg
+fw_params.J = diag([550, 750, 1100]); % inertia matrix, kg*m^2 (estimated)
+fw_params.S = 9.1; % wing area, m^2
+fw_params.b = 7.44; % wingspan, m
+fw_params.c = 1.22; % mean aerodynamic chord, m
 fw_params.rho = 1.225; % air density, kg/m^3
 fw_params.g = 9.81; % gravity, m/s^2
 
-% Aerodynamic Coefficients
-fw_params.CL0 = 0.28; fw_params.CL_alpha = 3.45; fw_params.CL_q = 0.0; fw_params.CL_de = -0.36;
-fw_params.CD0 = 0.03; fw_params.k = 0.04; fw_params.CDa = 0.0; fw_params.CD_q = 0.0; fw_params.CD_de = 0.0;
-fw_params.CY_beta = -0.98; fw_params.CY_p = 0.0; fw_params.CY_r = 0.0; fw_params.CY_da = 0.0; fw_params.CY_dr = -0.17;
-fw_params.Cl_beta = -0.12; fw_params.Cl_p = -0.26; fw_params.Cl_r = 0.14; fw_params.Cl_da = 0.08; fw_params.Cl_dr = 0.105;
-fw_params.Cm0 = -0.023; fw_params.Cm_alpha = -0.38; fw_params.Cm_q = -3.6; fw_params.Cm_de = -0.5;
-fw_params.Cn_beta = 0.25; fw_params.Cn_p = 0.022; fw_params.Cn_r = -0.35; fw_params.Cn_da = 0.06; fw_params.Cn_dr = -0.032;
+% Aerodynamic Coefficients (representative values for a highly rolling aircraft)
+fw_params.CL0 = 0.4; fw_params.CL_alpha = 5.7; fw_params.CL_q = 7.0; fw_params.CL_de = -0.8;
+fw_params.CD0 = 0.04; fw_params.k = 0.05; fw_params.CDa = 0.1; fw_params.CD_q = 0.0; fw_params.CD_de = 0.0;
+fw_params.CY_beta = -1.2; fw_params.CY_p = -0.1; fw_params.CY_r = 0.2; fw_params.CY_da = 0.2; fw_params.CY_dr = -0.2;
+fw_params.Cl_beta = -0.15; fw_params.Cl_p = -1.0; fw_params.Cl_r = 0.25; fw_params.Cl_da = 0.5; fw_params.Cl_dr = 0.05;
+fw_params.Cm0 = 0.0; fw_params.Cm_alpha = -1.5; fw_params.Cm_q = -15.0; fw_params.Cm_de = -1.8;
+fw_params.Cn_beta = 0.15; fw_params.Cn_p = -0.1; fw_params.Cn_r = -0.4; fw_params.Cn_da = 0.04; fw_params.Cn_dr = -0.1;
 
 %% Initial Conditions
 % Fixed-wing
@@ -56,7 +56,7 @@ quad_initial.relative_angle = [0; 0; 0];    % Initial relative angle to the fixe
 
 %% Fixed-wing control inputs
 fw_controls.thrust = 140;      % Constant thrust (N)
-fw_controls.elevator = -0.05;   % Constant elevator deflection (rad)
+fw_controls.elevator = -0.02;   % Constant elevator deflection (rad)
 fw_controls.aileron = 0.0;       % No roll input
 fw_controls.rudder = 0;        % No yaw input
 
@@ -65,8 +65,8 @@ dfl_gains.c0 = 23250.0;  % Position gain
 dfl_gains.c1 = 23400.0;  % Velocity gain
 dfl_gains.c2 = 550.0;   % Acceleration gain
 dfl_gains.c3 = 100.0;    % Jerk gain
-dfl_gains.c4 = 0.0;   % Yaw gain
-dfl_gains.c5 = 0.0;    % Yaw rate gain
+dfl_gains.c4 = 710.0;   % Yaw gain
+dfl_gains.c5 = 30.0;    % Yaw rate gain
 
 % Gimbal Gains
 dfl_gains.c_phi = 302.0;      % Proportional gain for gimbal roll
