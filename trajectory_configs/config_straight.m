@@ -47,7 +47,7 @@ fw_initial.w0 = 0;
 fw_initial.x0 = [0; 0; -100; fw_initial.u0; fw_initial.v0; fw_initial.w0; 1; 0; 0; 0; 0; 0; 0]; % x, y, z, u, v, w, q0, q1, q2, q3, p, q, r
 
 % Drone
-quad_initial.pos = [0; 0; -100.0];           % Initial position (m)
+quad_initial.pos = [-0.1; 0; -100.0];           % Initial position (m)
 quad_initial.vel = [fw_initial.u0; 0; 0];   % Initial velocity (m/s)
 quad_initial.angle = [0; 0; 0.0];             % Initial Euler angles (rad) [roll, pitch, yaw]
 quad_initial.ang_vel = [0; 0; 0];           % Initial angular velocity (rad/s) [roll, pitch, yaw]

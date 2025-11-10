@@ -67,14 +67,14 @@ fw_yaw = eul_fw(1);
 fw_omega_b = fw_state(11:13);
 R_fw_w = quat2rotm(q_fw');
 omega_fw_w = R_fw_w * fw_omega_b;
-fw_yaw_rate = omega_fw_w(3);
+fw_yaw_rate = omega_fw_w(1);
 
 % Update the desired yaw trajectory for the quadrotor
 psid_dot = fw_yaw_rate;
 
 % Enhanced yaw control with feedforward
 drone_yaw = eul_drone(1);
-yaw_error = wrapToPi(drone_yaw - 0.5);
+yaw_error = wrapToPi(drone_yaw - 0.1);
 v_yaw = -c5 * (vpsi - 0.0) - c4 * yaw_error;
 
 % Combined virtual control vector
