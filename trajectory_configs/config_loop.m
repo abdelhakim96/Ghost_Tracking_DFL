@@ -4,7 +4,7 @@ delta_t = 0.01;     % Time step for the simulation (s)
 t_sim = 0:delta_t:t_end; % Time vector for the simulation
 
 %% Quadrotor parameters
-quad_params.m = 0.468;      % Mass of the quadrotor (kg)
+quad_params.m = 5.0;      % Mass of the quadrotor (kg)
 quad_params.Ix = 0.0023;    % Moment of inertia around x-axis (kg*m^2)
 quad_params.Iy = 0.0023;    % Moment of inertia around y-axis (kg*m^2)
 quad_params.Iz = 0.0046;    % Moment of inertia around z-axis (kg*m^2)

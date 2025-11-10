@@ -163,8 +163,6 @@ v_phi = -c_phi * phi_g_error + c_ff_phi * phi_g_ref_dot;
 v_theta = -c_theta * theta_g_error + c_ff_theta * theta_g_ref_dot;
 
 
-v_phi = 0.0;
-v_theta = 0.0;
 
 % Combined virtual control vector
 v = [v_pos; v_yaw; v_phi; v_theta];

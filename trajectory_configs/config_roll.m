@@ -4,7 +4,7 @@ delta_t = 0.01;     % Time step for the simulation (s)
 t_sim = 0:delta_t:t_end; % Time vector for the simulation
 
 %% Quadrotor parameters
-quad_params.m = 0.468;      % Mass of the quadrotor (kg)
+quad_params.m = 5.0;      % Mass of the quadrotor (kg)
 quad_params.Ix = 0.0023;    % Moment of inertia around x-axis (kg*m^2)
 quad_params.Iy = 0.0023;    % Moment of inertia around y-axis (kg*m^2)
 quad_params.Iz = 0.0046;    % Moment of inertia around z-axis (kg*m^2)
@@ -90,6 +90,6 @@ dfl_gains.c5 = 0.0;    % Yaw rate gain
 
 % Gimbal Gains
 dfl_gains.c_phi = 0.0;      % Proportional gain for gimbal roll
-dfl_gains.c_theta = 0.0;    % Proportional gain for gimbal pitch
-dfl_gains.c_ff_phi = 1.0;      % Feedforward gain for gimbal roll
-dfl_gains.c_ff_theta = 1.0;    % Feedforward gain for gimbal pitch
+dfl_gains.c_theta = 1.0;    % Proportional gain for gimbal pitch
+dfl_gains.c_ff_phi = 0.0;      % Feedforward gain for gimbal roll
+dfl_gains.c_ff_theta = 0.0;    % Feedforward gain for gimbal pitch
