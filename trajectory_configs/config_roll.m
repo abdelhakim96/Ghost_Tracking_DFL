@@ -85,11 +85,11 @@ dfl_gains.c0 = 23250.0;  % Position gain
 dfl_gains.c1 = 23400.0;  % Velocity gain
 dfl_gains.c2 = 550.0;   % Acceleration gain
 dfl_gains.c3 = 100.0;    % Jerk gain
-dfl_gains.c4 = 0.0;   % Yaw gain
+dfl_gains.c4 = 1.0;   % Yaw gain
 dfl_gains.c5 = 0.0;    % Yaw rate gain
 
 % Gimbal Gains
-dfl_gains.c_phi = 0.0;      % Proportional gain for gimbal roll
-dfl_gains.c_theta = 1.0;    % Proportional gain for gimbal pitch
+dfl_gains.c_phi = 10.0;      % Proportional gain for gimbal roll
+dfl_gains.c_theta = 10.0;    % Proportional gain for gimbal pitch
 dfl_gains.c_ff_phi = 0.0;      % Feedforward gain for gimbal roll
 dfl_gains.c_ff_theta = 0.0;    % Feedforward gain for gimbal pitch

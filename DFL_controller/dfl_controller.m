@@ -52,7 +52,7 @@ if abs(cos(theta)) < 1e-6
 else
     eul_drone_rates = T_inv * omega_b;
 end
-vpsi = eul_drone_rates(1); % Yaw rate in world frame
+vpsi = eul_drone_rates(3); % Yaw rate in world frame
 
 % Virtual control input
 v_pos = sd - c3*(j - jd) - c2*(a_ - ad) - c1*(v_w - vd) - c0*(x_w - xd);
@@ -74,8 +74,8 @@ psid_dot = fw_yaw_rate;
 
 % Enhanced yaw control with feedforward
 drone_yaw = eul_drone(1);
-yaw_error = wrapToPi(drone_yaw - fw_yaw);
-v_yaw = -c5 * (vpsi - psid_dot) - c4 * yaw_error;
+yaw_error = wrapToPi(drone_yaw - 0.5);
+v_yaw = -c5 * (vpsi - 0.0) - c4 * yaw_error;
 
 % Combined virtual control vector
 v = [v_pos; v_yaw];
