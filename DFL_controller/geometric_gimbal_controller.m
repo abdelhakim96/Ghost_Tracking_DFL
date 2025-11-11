@@ -94,10 +94,6 @@ else
     theta_g_dot = q_g;
 end
 
-% Limit gimbal rates (optional, tune as needed)
-%max_rate = 2.0; % rad/s
-%phi_g_dot = max(-max_rate, min(max_rate, phi_g_dot));
-%theta_g_dot = max(-max_rate, min(max_rate, theta_g_dot));
 
 u_gimbal = [phi_g_dot; theta_g_dot];
 

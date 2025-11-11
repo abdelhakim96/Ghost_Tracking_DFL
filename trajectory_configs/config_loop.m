@@ -4,7 +4,7 @@ delta_t = 0.01;     % Time step for the simulation (s)
 t_sim = 0:delta_t:t_end; % Time vector for the simulation
 
 %% Quadrotor parameters
-quad_params.m = 5.0;      % Mass of the quadrotor (kg)
+quad_params.m = 0.5;      % Mass of the quadrotor (kg)
 quad_params.Ix = 0.0023;    % Moment of inertia around x-axis (kg*m^2)
 quad_params.Iy = 0.0023;    % Moment of inertia around y-axis (kg*m^2)
 quad_params.Iz = 0.0046;    % Moment of inertia around z-axis (kg*m^2)
@@ -62,7 +62,7 @@ fw_controls.rudder = 0;        % No yaw input
 
 
 % Position and Yaw Gains
-dfl_gains.c0 = 23250.0;  % Position gain
+dfl_gains.c0 = 53250.0;  % Position gain
 dfl_gains.c1 = 23400.0;  % Velocity gain
 dfl_gains.c2 = 550.0;   % Acceleration gain
 dfl_gains.c3 = 100.0;    % Jerk gain

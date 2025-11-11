@@ -60,8 +60,8 @@ psid_dot = fw_yaw_rate;
 
 % Enhanced yaw control with feedforward
 drone_yaw = eul_drone(1);
-yaw_error = wrapToPi(drone_yaw - fw_yaw);
-v_yaw = -c5 * (vpsi - psid_dot) - c4 * yaw_error;
+yaw_error = wrapToPi(drone_yaw - 0.0);
+v_yaw = -c5 * (vpsi -0.0) - c4 * yaw_error;
 
 % Combined virtual control vector
 v = [v_pos; v_yaw];

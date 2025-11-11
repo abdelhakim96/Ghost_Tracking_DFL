@@ -201,7 +201,7 @@ end
 gimbal_global_roll_hist = neglectAngleJump(gimbal_global_roll_hist);
 gimbal_global_pitch_hist = neglectAngleJump(gimbal_global_pitch_hist);
 gimbal_global_yaw_hist = neglectAngleJump(gimbal_global_yaw_hist);
-fw_global_roll_hist = neglectAngleJump(fw_global_roll_hist);
+fw_global_roll_hist = unwrap(fw_global_roll_hist);
 fw_global_pitch_hist = neglectAngleJump(fw_global_pitch_hist);
 fw_global_yaw_hist = neglectAngleJump(fw_global_yaw_hist);
 drone_global_roll_hist = neglectAngleJump(drone_global_roll_hist);
