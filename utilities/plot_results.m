@@ -125,10 +125,14 @@ end
 light('Position',[1 0 0],'Style','infinite');
 light('Position',[-1 0 0],'Style','infinite');
 ax1 = gca;
-ax1.FontSize = 12;
+ax1.FontSize = 12 * 3;
+xlabel_handle = get(ax1, 'XLabel');
+ylabel_handle = get(ax1, 'YLabel');
+zlabel_handle = get(ax1, 'ZLabel');
+set([xlabel_handle, ylabel_handle, zlabel_handle], 'FontSize', ax1.FontSize);
 leg1 = findobj(fig1, 'Type', 'Legend');
 if ~isempty(leg1)
-    leg1.FontSize = 10;
+    leg1.FontSize = 10 * 3;
 end
 print(fig1, [results_dir '/3d_trajectory_' config_to_run '.pdf'], '-dpdf', '-r300');
 drawnow; figure(fig1); pause(0.1);
@@ -231,20 +235,20 @@ drone_global_yaw_hist = round(drone_global_yaw_hist, 4);
 
 %% Combined Position and Orientation Plot
 fig_combined = figure('Name', 'Position and Orientation Tracking', 'NumberTitle', 'off', 'Color', 'w');
-set(fig_combined, 'Position', [100, 100, 1200, 600]);
+set(fig_combined, 'Position', [100, 100, 1200, 550]);
 
 subplot(2,3,1); plot(t, x_quad(:,1), 'b', t, x_fw(:,1), 'r--', t, x_quad(:,1), 'g-.', 'LineWidth', 1.5);
-ylabel('X (m)'); grid on; legend('$X_M$', '$X_A$', '$X_g$', 'Interpreter', 'latex'); axis tight;
+ylabel('x (m)'); xlabel('Time (s)'); grid on; legend('$x_M$', '$x_A$', '$x_{MC}$', 'Interpreter', 'latex'); axis tight;
 subplot(2,3,2); plot(t, x_quad(:,2), 'b', t, x_fw(:,2), 'r--', t, x_quad(:,2), 'g-.', 'LineWidth', 1.5);
-ylabel('Y (m)'); grid on; legend('$Y_M$', '$Y_A$', '$Y_g$', 'Interpreter', 'latex'); axis tight;
+ylabel('y (m)'); xlabel('Time (s)'); grid on; legend('$y_M$', '$y_A$', '$y_{MC}$', 'Interpreter', 'latex'); axis tight;
 subplot(2,3,3); plot(t, -x_quad(:,3), 'b', t, -x_fw(:,3), 'r--', t, -x_quad(:,3), 'g-.', 'LineWidth', 1.5);
-ylabel('Z (m)'); grid on; legend('$Z_M$', '$Z_A$', '$Z_g$', 'Interpreter', 'latex'); axis tight;
+ylabel('z (m)'); xlabel('Time (s)'); grid on; legend('$z_M$', '$z_A$', '$z_{MC}$', 'Interpreter', 'latex'); axis tight;
 subplot(2,3,4); plot(t, drone_global_roll_hist*180/pi, 'b', t, fw_global_roll_hist*180/pi, 'r--', t, gimbal_global_roll_hist*180/pi, 'g-.', 'LineWidth', 1.5);
-ylabel('$\phi$ (deg)', 'Interpreter', 'latex'); xlabel('Time (s)'); grid on; legend('$\phi_M$', '$\phi_A$', '$\phi_g$', 'Interpreter', 'latex'); axis tight;
+ylabel('$\phi$ (deg)', 'Interpreter', 'latex'); xlabel('Time (s)'); grid on; legend('$\phi_M$', '$\phi_A$', '$\phi_{MC}$', 'Interpreter', 'latex'); axis tight;
 subplot(2,3,5); plot(t, drone_global_pitch_hist*180/pi, 'b', t, fw_global_pitch_hist*180/pi, 'r--', t, gimbal_global_pitch_hist*180/pi, 'g-.', 'LineWidth', 1.5);
-ylabel('$\theta$ (deg)', 'Interpreter', 'latex'); xlabel('Time (s)'); grid on; legend('$\theta_M$', '$\theta_A$', '$\theta_g$', 'Interpreter', 'latex'); axis tight;
+ylabel('$\theta$ (deg)', 'Interpreter', 'latex'); xlabel('Time (s)'); grid on; legend('$\theta_M$', '$\theta_A$', '$\theta_{MC}$', 'Interpreter', 'latex'); axis tight;
 subplot(2,3,6); plot(t, drone_global_yaw_hist*180/pi, 'b', t, fw_global_yaw_hist*180/pi, 'r--', t, gimbal_global_yaw_hist*180/pi, 'g-.', 'LineWidth', 1.5);
-ylabel('$\psi$ (deg)', 'Interpreter', 'latex'); xlabel('Time (s)'); grid on; legend('$\psi_M$', '$\psi_A$', '$\psi_g$', 'Interpreter', 'latex'); axis tight;
+ylabel('$\psi$ (deg)', 'Interpreter', 'latex'); xlabel('Time (s)'); grid on; legend('$\psi_M$', '$\psi_A$', '$\psi_{MC}$', 'Interpreter', 'latex'); axis tight;
 h = findobj(fig_combined,'type','axes');
 pos = get(h(6), 'Position'); set(h(6), 'Position', [0.05, pos(2), 0.25, pos(4)]);
 pos = get(h(5), 'Position'); set(h(5), 'Position', [0.38, pos(2), 0.25, pos(4)]);
@@ -254,10 +258,27 @@ pos = get(h(2), 'Position'); set(h(2), 'Position', [0.38, pos(2), 0.25, pos(4)])
 pos = get(h(1), 'Position'); set(h(1), 'Position', [0.71, pos(2), 0.25, pos(4)]);
 
 for i = 1:length(h)
-    set(h(i), 'FontSize', get(h(i), 'FontSize') * 1.3);
+    % Get current font size
+    current_size = get(h(i), 'FontSize');
+    
+    % Set new tick size (original * 1.3, then reduced by 20%)
+    new_tick_size = current_size * 1.3 * 0.8;
+    
+    % Set new label size (new_tick_size * 0.7, then increased by 10%, then by 30%, then by 20%)
+    new_label_size = new_tick_size * 0.7 * 1.1 * 1.3 * 1.2;
+    
+    % Apply new font size to axis ticks
+    set(h(i), 'FontSize', new_tick_size);
+    
+    % Explicitly apply larger font size to labels
+    xlabel_handle = get(h(i), 'XLabel');
+    ylabel_handle = get(h(i), 'YLabel');
+    set([xlabel_handle, ylabel_handle], 'FontSize', new_label_size);
+
+    % Apply tick font size to legend, increased by 20%
     leg = get(h(i), 'Legend');
     if ~isempty(leg)
-        set(leg, 'FontSize', get(leg, 'FontSize') * 1.3);
+        set(leg, 'FontSize', new_tick_size * 1.2);
         leg.BoxFace.ColorType = 'truecoloralpha';
         leg.BoxFace.ColorData(4) = 128;
     end
