@@ -25,7 +25,12 @@ p1.Color(4) = 0.5; hold on;
 p2 = plot3(x_fw(:,1), x_fw(:,2), -x_fw(:,3), 'r--', 'LineWidth', 1.5);
 p2.Color(4) = 0.5; grid on;
 xlabel('North (m)'); ylabel('East (m)'); zlabel('Altitude (m)');
-axis equal; view(45, 25);
+if strcmp(config_to_run, 'straight')
+    view(75, 25);
+else
+    view(45, 25);
+end
+axis equal;
 
 legend_added = false;
 legend_added_stl = false;
@@ -112,14 +117,20 @@ for i = 1:31:length(t)
     quiver3(pos_quad(1), pos_quad(2), pos_quad(3), gimbal_y(1), gimbal_y(2), -gimbal_y(3), 'Color', dark_green, 'LineWidth', line_width_gimbal, 'HandleVisibility','off');
     quiver3(pos_quad(1), pos_quad(2), pos_quad(3), gimbal_z(1), gimbal_z(2), -gimbal_z(3), 'Color', dark_blue, 'LineWidth', line_width_gimbal, 'HandleVisibility','off');
     
-    if ~legend_added
-        legend([p1, p2, p_stl], 'Quadrotor Path', 'Fixed-Wing Path', 'FW plane', 'Position', [0.6 0.75 0.1 0.15]);
-        legend_added = true;
-    end
+if ~legend_added && ~strcmp(config_to_run, 'straight')
+    legend([p1, p2, p_stl], 'Quadrotor Path', 'Fixed-Wing Path', 'FW plane', 'Position', [0.6 0.75 0.1 0.15]);
+    legend_added = true;
+end
 end
 light('Position',[1 0 0],'Style','infinite');
 light('Position',[-1 0 0],'Style','infinite');
-saveas(fig1, [results_dir '/3d_trajectory_' config_to_run '.pdf']);
+ax1 = gca;
+ax1.FontSize = 12;
+leg1 = findobj(fig1, 'Type', 'Legend');
+if ~isempty(leg1)
+    leg1.FontSize = 10;
+end
+print(fig1, [results_dir '/3d_trajectory_' config_to_run '.pdf'], '-dpdf', '-r300');
 drawnow; figure(fig1); pause(0.1);
 
 %% Orientation and Reference Calculations
@@ -135,6 +146,7 @@ fw_global_pitch_hist = zeros(length(t), 1);
 fw_global_yaw_hist = zeros(length(t), 1);
 drone_global_roll_hist = zeros(length(t), 1);
 drone_global_pitch_hist = zeros(length(t), 1);
+drone_global_yaw_hist = zeros(length(t), 1);
 last_phi_g_ref = 0; last_theta_g_ref = 0;
 
 % Initialize last angles for unwrapping
@@ -151,6 +163,7 @@ for i = 1:length(t)
             2*(q1*q3-q0*q2), 2*(q2*q3+q0*q1), q0^2-q1^2-q2^2+q3^2];
     drone_global_roll_hist(i) = atan2(2*(q0*q1 + q2*q3), 1 - 2*(q1^2 + q2^2));
     drone_global_pitch_hist(i) = asin(2*(q0*q2 - q3*q1));
+    drone_global_yaw_hist(i) = atan2(2*(q0*q3 + q1*q2), 1 - 2*(q2^2 + q3^2));
 
     q_fw = fw_state(i, 7:10);
     q0_fw=q_fw(1); q1_fw=q_fw(2); q2_fw=q_fw(3); q3_fw=q_fw(4);
@@ -203,6 +216,7 @@ fw_global_pitch_hist = neglectAngleJump(fw_global_pitch_hist);
 fw_global_yaw_hist = neglectAngleJump(fw_global_yaw_hist);
 drone_global_roll_hist = neglectAngleJump(drone_global_roll_hist);
 drone_global_pitch_hist = neglectAngleJump(drone_global_pitch_hist);
+drone_global_yaw_hist = neglectAngleJump(drone_global_yaw_hist);
 
 gimbal_global_roll_hist = round(gimbal_global_roll_hist, 4);
 gimbal_global_pitch_hist = round(gimbal_global_pitch_hist, 4);
@@ -212,24 +226,25 @@ fw_global_pitch_hist = round(fw_global_pitch_hist, 4);
 fw_global_yaw_hist = round(fw_global_yaw_hist, 4);
 drone_global_roll_hist = round(drone_global_roll_hist, 4);
 drone_global_pitch_hist = round(drone_global_pitch_hist, 4);
+drone_global_yaw_hist = round(drone_global_yaw_hist, 4);
 
 
 %% Combined Position and Orientation Plot
 fig_combined = figure('Name', 'Position and Orientation Tracking', 'NumberTitle', 'off', 'Color', 'w');
 set(fig_combined, 'Position', [100, 100, 1200, 600]);
 
-subplot(2,3,1); plot(t, x_quad(:,1), 'b', t, x_fw(:,1), 'r--', 'LineWidth', 1.5);
-title('X Position'); ylabel('m'); grid on; legend('Gimbal', 'Fixed-Wing');
-subplot(2,3,2); plot(t, x_quad(:,2), 'b', t, x_fw(:,2), 'r--', 'LineWidth', 1.5);
-title('Y Position'); ylabel('m'); grid on;
-subplot(2,3,3); plot(t, -x_quad(:,3), 'b', t, -x_fw(:,3), 'r--', 'LineWidth', 1.5);
-title('Z Position'); ylabel('m'); grid on;
-subplot(2,3,4); plot(t, gimbal_global_roll_hist*180/pi, 'b', t, fw_global_roll_hist*180/pi, 'r--', 'LineWidth', 1.5);
-title('φ_G^W'); ylabel('deg'); xlabel('Time (s)'); grid on;
-subplot(2,3,5); plot(t, gimbal_global_pitch_hist*180/pi, 'b', t, fw_global_pitch_hist*180/pi, 'r--', 'LineWidth', 1.5);
-title('θ_G^W'); ylabel('deg'); xlabel('Time (s)'); grid on;
-subplot(2,3,6); plot(t, gimbal_global_yaw_hist*180/pi, 'b', t, fw_global_yaw_hist*180/pi, 'r--', 'LineWidth', 1.5);
-title('ψ_G^W'); ylabel('deg'); xlabel('Time (s)'); grid on;
+subplot(2,3,1); plot(t, x_quad(:,1), 'b', t, x_fw(:,1), 'r--', t, x_quad(:,1), 'g-.', 'LineWidth', 1.5);
+ylabel('X (m)'); grid on; legend('Drone', 'Fixed-Wing', 'Gimbal', 'Location', 'northeast'); axis tight;
+subplot(2,3,2); plot(t, x_quad(:,2), 'b', t, x_fw(:,2), 'r--', t, x_quad(:,2), 'g-.', 'LineWidth', 1.5);
+ylabel('Y (m)'); grid on; axis tight;
+subplot(2,3,3); plot(t, -x_quad(:,3), 'b', t, -x_fw(:,3), 'r--', t, -x_quad(:,3), 'g-.', 'LineWidth', 1.5);
+ylabel('Z (m)'); grid on; axis tight;
+subplot(2,3,4); plot(t, drone_global_roll_hist*180/pi, 'b', t, fw_global_roll_hist*180/pi, 'r--', t, gimbal_global_roll_hist*180/pi, 'g-.', 'LineWidth', 1.5);
+ylabel('Roll (deg)'); xlabel('Time (s)'); grid on; axis tight;
+subplot(2,3,5); plot(t, drone_global_pitch_hist*180/pi, 'b', t, fw_global_pitch_hist*180/pi, 'r--', t, gimbal_global_pitch_hist*180/pi, 'g-.', 'LineWidth', 1.5);
+ylabel('Pitch (deg)'); xlabel('Time (s)'); grid on; axis tight;
+subplot(2,3,6); plot(t, drone_global_yaw_hist*180/pi, 'b', t, fw_global_yaw_hist*180/pi, 'r--', t, gimbal_global_yaw_hist*180/pi, 'g-.', 'LineWidth', 1.5);
+ylabel('Yaw (deg)'); xlabel('Time (s)'); grid on; axis tight;
 saveas(fig_combined, [results_dir '/position_and_orientation_' config_to_run '.pdf']);
 drawnow; figure(fig_combined); pause(0.1);
 
