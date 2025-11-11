@@ -6,25 +6,24 @@ quad_state = state(:, 1:17);
 fw_state = state(:, 18:30);
 
 % Create results directory if it doesn't exist
-if ~exist('results', 'dir')
-   mkdir('results')
+if ~exist('../results', 'dir')
+   mkdir('../results')
 end
-results_dir = ['results/results_' config_to_run];
+results_dir = ['../results/results_' config_to_run];
 if ~exist(results_dir, 'dir')
    mkdir(results_dir)
 end
 
 % Extract quadrotor and fixed-wing positions
-x_quad = quad_state(:, 1:3);
-x_fw = fw_state(:, 1:3);
+x_quad = round(quad_state(:, 1:3), 4);
+x_fw = round(fw_state(:, 1:3), 4);
 
 %% Plot 3D Trajectory (NED Frame)
-fig1 = figure('Name', '3D Trajectory Tracking (NED Frame)', 'NumberTitle', 'off');
+fig1 = figure('Name', '3D Trajectory Tracking (NED Frame)', 'NumberTitle', 'off', 'Color', 'w');
 p1 = plot3(x_quad(:,1), x_quad(:,2), -x_quad(:,3), 'b', 'LineWidth', 1.5);
 p1.Color(4) = 0.5; hold on;
 p2 = plot3(x_fw(:,1), x_fw(:,2), -x_fw(:,3), 'r--', 'LineWidth', 1.5);
 p2.Color(4) = 0.5; grid on;
-title(['Quadrotor Tracking Fixed-Wing Trajectory (' config_to_run ')']);
 xlabel('North (m)'); ylabel('East (m)'); zlabel('Altitude (m)');
 axis equal; view(45, 25);
 
@@ -45,7 +44,7 @@ V_quad = V_quad * quad_model_scale;
 
 V_fw = V_fw - mean(V_fw);
 V_fw = V_fw / 20;
-model_scale = 0.7;
+model_scale = 1.2;
 V_fw = V_fw * model_scale;
 
 % Corrective rotation
@@ -60,7 +59,7 @@ R_pitch = [cos(pitch_angle) 0 sin(pitch_angle);
 R_correction = R_pitch * R_yaw;
 V_fw = (R_correction * V_fw')';
 
-for i = 1:10:length(t)
+for i = 1:31:length(t)
     % Fixed-wing pose
     pos_fw = [x_fw(i,1), x_fw(i,2), -x_fw(i,3)];
     q_fw = fw_state(i, 7:10);
@@ -72,7 +71,7 @@ for i = 1:10:length(t)
     V_translated_fw = V_rotated_fw + pos_fw;
     
     if ~legend_added_stl
-        p_stl = patch('Faces', F_fw, 'Vertices', V_translated_fw, 'FaceColor', [0.8 0.2 0.2], 'EdgeColor', 'none', 'FaceLighting', 'gouraud', 'FaceAlpha', 0.1, 'DisplayName', 'Ghost FW aeroplane');
+        p_stl = patch('Faces', F_fw, 'Vertices', V_translated_fw, 'FaceColor', [0.8 0.2 0.2], 'EdgeColor', 'none', 'FaceLighting', 'gouraud', 'FaceAlpha', 0.1, 'DisplayName', 'FW plane');
         legend_added_stl = true;
     else
         patch('Faces', F_fw, 'Vertices', V_translated_fw, 'FaceColor', [0.8 0.2 0.2], 'EdgeColor', 'none', 'FaceLighting', 'gouraud', 'FaceAlpha', 0.1, 'HandleVisibility','off');
@@ -114,7 +113,7 @@ for i = 1:10:length(t)
     quiver3(pos_quad(1), pos_quad(2), pos_quad(3), gimbal_z(1), gimbal_z(2), -gimbal_z(3), 'Color', dark_blue, 'LineWidth', line_width_gimbal, 'HandleVisibility','off');
     
     if ~legend_added
-        legend([p1, p2, p_stl, p_quad_stl], 'Quadrotor Path', 'Fixed-Wing Path', 'Ghost FW aeroplane', 'Quadrotor');
+        legend([p1, p2, p_stl], 'Quadrotor Path', 'Fixed-Wing Path', 'FW plane', 'Position', [0.6 0.75 0.1 0.15]);
         legend_added = true;
     end
 end
@@ -205,38 +204,47 @@ fw_global_yaw_hist = neglectAngleJump(fw_global_yaw_hist);
 drone_global_roll_hist = neglectAngleJump(drone_global_roll_hist);
 drone_global_pitch_hist = neglectAngleJump(drone_global_pitch_hist);
 
+gimbal_global_roll_hist = round(gimbal_global_roll_hist, 4);
+gimbal_global_pitch_hist = round(gimbal_global_pitch_hist, 4);
+gimbal_global_yaw_hist = round(gimbal_global_yaw_hist, 4);
+fw_global_roll_hist = round(fw_global_roll_hist, 4);
+fw_global_pitch_hist = round(fw_global_pitch_hist, 4);
+fw_global_yaw_hist = round(fw_global_yaw_hist, 4);
+drone_global_roll_hist = round(drone_global_roll_hist, 4);
+drone_global_pitch_hist = round(drone_global_pitch_hist, 4);
+
 
 %% Combined Position and Orientation Plot
-fig_combined = figure('Name', 'Position and Orientation Tracking', 'NumberTitle', 'off');
-set(fig_combined, 'Position', [100, 100, 800, 1200]);
+fig_combined = figure('Name', 'Position and Orientation Tracking', 'NumberTitle', 'off', 'Color', 'w');
+set(fig_combined, 'Position', [100, 100, 1200, 600]);
 
-subplot(3,2,1); plot(t, x_quad(:,1), 'b', t, x_fw(:,1), 'r--', 'LineWidth', 1.5);
+subplot(2,3,1); plot(t, x_quad(:,1), 'b', t, x_fw(:,1), 'r--', 'LineWidth', 1.5);
 title('X Position'); ylabel('m'); grid on; legend('Gimbal', 'Fixed-Wing');
-subplot(3,2,3); plot(t, x_quad(:,2), 'b', t, x_fw(:,2), 'r--', 'LineWidth', 1.5);
+subplot(2,3,2); plot(t, x_quad(:,2), 'b', t, x_fw(:,2), 'r--', 'LineWidth', 1.5);
 title('Y Position'); ylabel('m'); grid on;
-subplot(3,2,5); plot(t, -x_quad(:,3), 'b', t, -x_fw(:,3), 'r--', 'LineWidth', 1.5);
-title('Z Position'); ylabel('m'); xlabel('Time (s)'); grid on;
-subplot(3,2,2); plot(t, gimbal_global_roll_hist*180/pi, 'b', t, fw_global_roll_hist*180/pi, 'r--', 'LineWidth', 1.5);
-title('Global Roll'); ylabel('deg'); grid on;
-subplot(3,2,4); plot(t, gimbal_global_pitch_hist*180/pi, 'b', t, fw_global_pitch_hist*180/pi, 'r--', 'LineWidth', 1.5);
-title('Global Pitch'); ylabel('deg'); grid on;
-subplot(3,2,6); plot(t, gimbal_global_yaw_hist*180/pi, 'b', t, fw_global_yaw_hist*180/pi, 'r--', 'LineWidth', 1.5);
-title('Global Yaw'); ylabel('deg'); xlabel('Time (s)'); grid on;
+subplot(2,3,3); plot(t, -x_quad(:,3), 'b', t, -x_fw(:,3), 'r--', 'LineWidth', 1.5);
+title('Z Position'); ylabel('m'); grid on;
+subplot(2,3,4); plot(t, gimbal_global_roll_hist*180/pi, 'b', t, fw_global_roll_hist*180/pi, 'r--', 'LineWidth', 1.5);
+title('φ_G^W'); ylabel('deg'); xlabel('Time (s)'); grid on;
+subplot(2,3,5); plot(t, gimbal_global_pitch_hist*180/pi, 'b', t, fw_global_pitch_hist*180/pi, 'r--', 'LineWidth', 1.5);
+title('θ_G^W'); ylabel('deg'); xlabel('Time (s)'); grid on;
+subplot(2,3,6); plot(t, gimbal_global_yaw_hist*180/pi, 'b', t, fw_global_yaw_hist*180/pi, 'r--', 'LineWidth', 1.5);
+title('ψ_G^W'); ylabel('deg'); xlabel('Time (s)'); grid on;
 saveas(fig_combined, [results_dir '/position_and_orientation_' config_to_run '.pdf']);
 drawnow; figure(fig_combined); pause(0.1);
 
 %% Control Inputs
 control_history = quadrotor_dynamics_realtime('get_history');
 time_hist = control_history(:, 1);
-thrust_hist = control_history(:, 2);
-u_p_hist = control_history(:, 3);
-u_q_hist = control_history(:, 4);
-u_r_hist = control_history(:, 5);
-u_phi_g_hist = control_history(:, 9);
-u_theta_g_hist = control_history(:, 10);
-gimbal_roll_from_history = control_history(:, 11);
+thrust_hist = round(control_history(:, 2), 4);
+u_p_hist = round(control_history(:, 3), 4);
+u_q_hist = round(control_history(:, 4), 4);
+u_r_hist = round(control_history(:, 5), 4);
+u_phi_g_hist = round(control_history(:, 9), 4);
+u_theta_g_hist = round(control_history(:, 10), 4);
+gimbal_roll_from_history = round(control_history(:, 11), 4);
 
-fig_control_inputs = figure('Name', 'Control Inputs', 'NumberTitle', 'off');
+fig_control_inputs = figure('Name', 'Control Inputs', 'NumberTitle', 'off', 'Color', 'w');
 subplot(3,2,1); plot(time_hist, thrust_hist, 'k', 'LineWidth', 1.5); title('Total Thrust'); grid on;
 subplot(3,2,2); plot(time_hist, u_p_hist, 'r', 'LineWidth', 1.5); title('Roll Moment'); grid on;
 subplot(3,2,3); plot(time_hist, u_q_hist, 'g', 'LineWidth', 1.5); title('Pitch Moment'); grid on;
@@ -247,7 +255,7 @@ saveas(fig_control_inputs, [results_dir '/control_inputs_' config_to_run '.pdf']
 drawnow; figure(fig_control_inputs); pause(0.1);
 
 %% Drone State Plot
-fig_drone_state = figure('Name', 'Drone State vs Time', 'NumberTitle', 'off');
+fig_drone_state = figure('Name', 'Drone State vs Time', 'NumberTitle', 'off', 'Color', 'w');
 subplot(2,1,1);
 plot(t, x_quad(:,1), 'r', t, x_quad(:,2), 'g', t, -x_quad(:,3), 'b', 'LineWidth', 1.5);
 grid on; title('Drone Position'); xlabel('s'); ylabel('m'); legend('x','y','z');
@@ -258,7 +266,7 @@ saveas(fig_drone_state, [results_dir '/drone_state_' config_to_run '.pdf']);
 drawnow; figure(fig_drone_state); pause(0.1);
 
 %% Debug Roll Comparison
-fig_debug = figure('Name', 'Global Roll Angle Comparison', 'NumberTitle', 'off');
+fig_debug = figure('Name', 'Global Roll Angle Comparison', 'NumberTitle', 'off', 'Color', 'w');
 plot(t, gimbal_global_roll_hist*180/pi, 'b-', 'LineWidth', 1.5);
 hold on; plot(time_hist, gimbal_roll_from_history*180/pi, 'r--', 'LineWidth', 1.5);
 plot(t, drone_global_roll_hist*180/pi, 'g-.', 'LineWidth', 1.5);
@@ -269,7 +277,7 @@ saveas(fig_debug, [results_dir '/debug_roll_comparison_' config_to_run '.pdf']);
 drawnow; figure(fig_debug); pause(0.1);
 
 %% Debug Pitch Comparison
-fig_pitch_debug = figure('Name', 'Global Pitch Angle Comparison', 'NumberTitle', 'off');
+fig_pitch_debug = figure('Name', 'Global Pitch Angle Comparison', 'NumberTitle', 'off', 'Color', 'w');
 plot(t, gimbal_global_pitch_hist*180/pi, 'b-', 'LineWidth', 1.5);
 hold on; plot(t, fw_global_pitch_hist*180/pi, 'r--', 'LineWidth', 1.5);
 plot(t, drone_global_pitch_hist*180/pi, 'g-.', 'LineWidth', 1.5);
