@@ -76,7 +76,7 @@ gimbal_state = state(14:15);
 u_drone = dfl_controller(t, drone_state, xd, vd, ad, jd, sd, psid, fw_state, dfl_gains);
 
 % Call the gimbal controller
-u_gimbal = gimbal_controller(state, fw_state, dfl_gains);
+u_gimbal = geometric_gimbal_controller(state, fw_state, dfl_gains);
 
 % Dynamics
 % Corrected thrust vector to point upwards (opposite to body Z-axis)
@@ -113,7 +113,5 @@ state_dot(17) = xi_dot;
 %gimbal_global_roll = phi_g;
 
 history(end+1, :) = [t, zeta, u_drone(2), u_drone(3), u_drone(4), omega_b', u_gimbal(1), u_gimbal(2), gimbal_global_roll, corrected_roll, corrected_pitch, corrected_yaw];
-
-fprintf('Gimbal Local Roll Angle (phi_g): %f, Gimbal Global Roll Angle: %f\n', phi_g, gimbal_global_roll);
 
 end

@@ -33,26 +33,12 @@ a_ = (F_thrust/m) - [0; 0; g];
 j = (zeta*(R_bw(:,1)*omega_b(2) - R_bw(:,2)*omega_b(1)) + R_bw(:,3)*xi)/m;
 
 % --- Consistent Yaw Rate Calculation ---
-% To get the world-frame yaw rate (vpsi), we need to transform the body-frame
-% angular velocity omega_b into world-frame angular rates using the full
-% kinematic transformation.
-eul_drone = quat2eul(q_bw', 'ZYX');
-phi = eul_drone(3);   % Roll
-theta = eul_drone(2); % Pitch
-
-% Full kinematic transformation from body rates to Euler rates
-% This avoids singularities when pitch is not zero.
-T_inv = [1, sin(phi)*tan(theta), cos(phi)*tan(theta);
-         0, cos(phi),            -sin(phi);
-         0, sin(phi)/cos(theta), cos(phi)/cos(theta)];
-
-% Add a safeguard for the singularity at pitch = +/- 90 degrees
-if abs(cos(theta)) < 1e-6
-    eul_drone_rates = [0; 0; 0]; % Avoid division by zero
-else
-    eul_drone_rates = T_inv * omega_b;
-end
-vpsi = eul_drone_rates(3); % Yaw rate in world frame
+% To get the world-frame yaw rate (vpsi), we transform the body-frame
+% angular velocity omega_b into the world frame and take the z-component.
+% This is a singularity-free approach.
+eul_drone = quat2eul(q_bw', 'ZYX'); % Still needed for yaw angle
+omega_w = R_bw * omega_b;
+vpsi = omega_w(3); % Yaw rate in world frame
 
 % Virtual control input
 v_pos = sd - c3*(j - jd) - c2*(a_ - ad) - c1*(v_w - vd) - c0*(x_w - xd);
@@ -67,15 +53,15 @@ fw_yaw = eul_fw(1);
 fw_omega_b = fw_state(11:13);
 R_fw_w = quat2rotm(q_fw');
 omega_fw_w = R_fw_w * fw_omega_b;
-fw_yaw_rate = omega_fw_w(1);
+fw_yaw_rate = omega_fw_w(3);
 
 % Update the desired yaw trajectory for the quadrotor
 psid_dot = fw_yaw_rate;
 
 % Enhanced yaw control with feedforward
 drone_yaw = eul_drone(1);
-yaw_error = wrapToPi(drone_yaw - 0.0);
-v_yaw = -c5 * (vpsi - 0.0) - c4 * yaw_error;
+yaw_error = wrapToPi(drone_yaw - fw_yaw);
+v_yaw = -c5 * (vpsi - psid_dot) - c4 * yaw_error;
 
 % Combined virtual control vector
 v = [v_pos; v_yaw];

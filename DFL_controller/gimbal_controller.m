@@ -46,10 +46,13 @@ error_vec = 0.5 * [R_error(3,2) - R_error(2,3);
                    R_error(1,3) - R_error(3,1); 
                    R_error(2,1) - R_error(1,2)];
 
+% Transform the error vector from the gimbal frame to the body frame
+error_vec_b = R_gb * error_vec;
+
 % Project the error onto the gimbal's controllable axes (kinematic inversion)
-p_corr = -error_vec(1);
-q_corr = error_vec(2);
-r_corr = error_vec(3);
+p_corr = error_vec_b(1);
+q_corr = error_vec_b(2);
+r_corr = error_vec_b(3);
 phi_g_error_term = p_corr * cos(theta_g) - r_corr * sin(theta_g);
 theta_g_error_term = q_corr;
 
