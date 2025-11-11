@@ -234,17 +234,38 @@ fig_combined = figure('Name', 'Position and Orientation Tracking', 'NumberTitle'
 set(fig_combined, 'Position', [100, 100, 1200, 600]);
 
 subplot(2,3,1); plot(t, x_quad(:,1), 'b', t, x_fw(:,1), 'r--', t, x_quad(:,1), 'g-.', 'LineWidth', 1.5);
-ylabel('X (m)'); grid on; legend('Drone', 'Fixed-Wing', 'Gimbal', 'Location', 'northeast'); axis tight;
+ylabel('X (m)'); grid on; legend('$X_M$', '$X_A$', '$X_g$', 'Interpreter', 'latex'); axis tight;
 subplot(2,3,2); plot(t, x_quad(:,2), 'b', t, x_fw(:,2), 'r--', t, x_quad(:,2), 'g-.', 'LineWidth', 1.5);
-ylabel('Y (m)'); grid on; axis tight;
+ylabel('Y (m)'); grid on; legend('$Y_M$', '$Y_A$', '$Y_g$', 'Interpreter', 'latex'); axis tight;
 subplot(2,3,3); plot(t, -x_quad(:,3), 'b', t, -x_fw(:,3), 'r--', t, -x_quad(:,3), 'g-.', 'LineWidth', 1.5);
-ylabel('Z (m)'); grid on; axis tight;
+ylabel('Z (m)'); grid on; legend('$Z_M$', '$Z_A$', '$Z_g$', 'Interpreter', 'latex'); axis tight;
 subplot(2,3,4); plot(t, drone_global_roll_hist*180/pi, 'b', t, fw_global_roll_hist*180/pi, 'r--', t, gimbal_global_roll_hist*180/pi, 'g-.', 'LineWidth', 1.5);
-ylabel('Roll (deg)'); xlabel('Time (s)'); grid on; axis tight;
+ylabel('$\phi$ (deg)', 'Interpreter', 'latex'); xlabel('Time (s)'); grid on; legend('$\phi_M$', '$\phi_A$', '$\phi_g$', 'Interpreter', 'latex'); axis tight;
 subplot(2,3,5); plot(t, drone_global_pitch_hist*180/pi, 'b', t, fw_global_pitch_hist*180/pi, 'r--', t, gimbal_global_pitch_hist*180/pi, 'g-.', 'LineWidth', 1.5);
-ylabel('Pitch (deg)'); xlabel('Time (s)'); grid on; axis tight;
+ylabel('$\theta$ (deg)', 'Interpreter', 'latex'); xlabel('Time (s)'); grid on; legend('$\theta_M$', '$\theta_A$', '$\theta_g$', 'Interpreter', 'latex'); axis tight;
 subplot(2,3,6); plot(t, drone_global_yaw_hist*180/pi, 'b', t, fw_global_yaw_hist*180/pi, 'r--', t, gimbal_global_yaw_hist*180/pi, 'g-.', 'LineWidth', 1.5);
-ylabel('Yaw (deg)'); xlabel('Time (s)'); grid on; axis tight;
+ylabel('$\psi$ (deg)', 'Interpreter', 'latex'); xlabel('Time (s)'); grid on; legend('$\psi_M$', '$\psi_A$', '$\psi_g$', 'Interpreter', 'latex'); axis tight;
+h = findobj(fig_combined,'type','axes');
+pos = get(h(6), 'Position'); set(h(6), 'Position', [0.05, pos(2), 0.25, pos(4)]);
+pos = get(h(5), 'Position'); set(h(5), 'Position', [0.38, pos(2), 0.25, pos(4)]);
+pos = get(h(4), 'Position'); set(h(4), 'Position', [0.71, pos(2), 0.25, pos(4)]);
+pos = get(h(3), 'Position'); set(h(3), 'Position', [0.05, pos(2), 0.25, pos(4)]);
+pos = get(h(2), 'Position'); set(h(2), 'Position', [0.38, pos(2), 0.25, pos(4)]);
+pos = get(h(1), 'Position'); set(h(1), 'Position', [0.71, pos(2), 0.25, pos(4)]);
+
+for i = 1:length(h)
+    set(h(i), 'FontSize', get(h(i), 'FontSize') * 1.3);
+    leg = get(h(i), 'Legend');
+    if ~isempty(leg)
+        set(leg, 'FontSize', get(leg, 'FontSize') * 1.3);
+        leg.BoxFace.ColorType = 'truecoloralpha';
+        leg.BoxFace.ColorData(4) = 128;
+    end
+end
+
+set(fig_combined, 'PaperPositionMode', 'auto');
+fig_pos = get(fig_combined, 'PaperPosition');
+set(fig_combined, 'PaperSize', [fig_pos(3) fig_pos(4)]);
 saveas(fig_combined, [results_dir '/position_and_orientation_' config_to_run '.pdf']);
 drawnow; figure(fig_combined); pause(0.1);
 
