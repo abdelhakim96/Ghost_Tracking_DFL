@@ -4,9 +4,21 @@
 %
 % The drone tracks position and keeps yaw stable (velocity heading).
 % The gimbal handles all camera orientation matching during the roll.
+%
+% CRITICAL: The FW must start near trimmed level flight so that the initial
+% NED acceleration is close to zero. Otherwise, the large acceleration
+% mismatch drives the DFL thrust state (zeta) through zero, triggering
+% the 1/zeta singularity in alpha_func.m.
+%
+% Trim conditions at V=40 m/s:
+%   qbar = 0.5*1.225*40^2 = 980 Pa,  qbar*S = 8918 N
+%   CL_trim = W/(qbar*S) = 2845/8918 = 0.319
+%   alpha_trim = (CL_trim - CL0)/CL_alpha = -0.014 rad
+%   Cm_trim: de = -(Cm0 + Cm_alpha*alpha)/Cm_de = 0.012 rad
+%   CD_trim = CD0 + k*CL^2 = 0.045,  Drag = 402 N  =>  Thrust ~ 400 N
 
 %% Simulation parameters
-t_end = 3.0;          % Long enough for full roll + settling
+t_end = 4.0;          % Long enough for full roll + settling
 delta_t = 0.01;       % Time step (match loop config)
 t_sim = 0:delta_t:t_end;
 
@@ -44,8 +56,10 @@ fw_params.Cm0 = 0.0; fw_params.Cm_alpha = -1.5; fw_params.Cm_q = -15.0; fw_param
 fw_params.Cn_beta = 0.15; fw_params.Cn_p = -0.1; fw_params.Cn_r = -0.4; fw_params.Cn_da = 0.04; fw_params.Cn_dr = -0.1;
 
 %% Initial Conditions
-% Fixed-wing: straight level flight at 80 m/s, altitude 100 m
-fw_initial.u0 = 80;
+% Fixed-wing: near-trim level flight at 40 m/s, altitude 100 m
+% At 40 m/s the lift approximately equals weight, so the initial
+% NED acceleration is near zero — no large transient to destabilize DFL.
+fw_initial.u0 = 40;
 fw_initial.v0 = 0;
 fw_initial.w0 = 0;
 fw_initial.x0 = [0; 0; -100; fw_initial.u0; fw_initial.v0; fw_initial.w0; 1; 0; 0; 0; 0; 0; 0];
@@ -61,23 +75,25 @@ quad_initial.relative_angle = [0; 0; 0];
 %% Fixed-wing control inputs — Roll maneuver
 fw_controls.t_sim = t_sim;
 
-% Constant thrust to maintain speed
-fw_controls.thrust = 340 * ones(size(t_sim));
+% Thrust to balance drag at trim (~400 N)
+fw_controls.thrust = 400 * ones(size(t_sim));
 
 % Roll timing
 roll_start = 0.5;     % Allow 0.5s settling before roll
-roll_duration = 1.5;  % 1.5s for a full roll (moderate rate ≈ 240 deg/s)
+roll_duration = 2.0;  % 2.0s for a full roll (moderate rate ~180 deg/s)
 roll_end = roll_start + roll_duration;
 
 % Aileron input: sine pulse for one full roll
-aileron_amp = -0.5;
+% At 40 m/s, qbar*S*b*Cl_da still provides ample roll authority
+aileron_amp = -0.4;
 aileron_input = zeros(size(t_sim));
 idx = t_sim >= roll_start & t_sim <= roll_end;
 aileron_input(idx) = aileron_amp * sin(pi * (t_sim(idx) - roll_start) / roll_duration);
 fw_controls.aileron = aileron_input;
 
-% Slight elevator to maintain altitude
-fw_controls.elevator = -0.25 * ones(size(t_sim));  % Same as loop config
+% Elevator near trim value (~0.012 rad for level flight at 40 m/s)
+% Small positive deflection to balance the pitching moment
+fw_controls.elevator = 0.01 * ones(size(t_sim));
 
 % No rudder
 fw_controls.rudder = zeros(size(t_sim));
@@ -94,6 +110,7 @@ dfl_gains.c3 = 100.0;     % Jerk error
 dfl_gains.c4 = 1.0;       % R(2,1) error (same as loop)
 dfl_gains.c5 = 0.0;       % R(2,1) rate (same as loop)
 
-% Gimbal SO(3) controller gains (same as loop config)
-dfl_gains.kp_R_gimbal = 5;
-dfl_gains.kp_omega_gimbal = 1;
+% Gimbal SO(3) controller gains
+% Higher gains than loop to track the fast-changing roll orientation
+dfl_gains.kp_R_gimbal = 8;
+dfl_gains.kp_omega_gimbal = 2;
