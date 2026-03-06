@@ -1,63 +1,179 @@
-# Quadrotor with Gimbal Tracking a Fixed-Wing Aircraft Simulation
+# Ghost Tracking via Dynamic Feedback Linearization
 
-This repository contains a set of MATLAB scripts that simulate a quadrotor with a gimbal tracking a fixed-wing aircraft. The simulation uses a Dynamic Feedback Linearization for the quadrotor and a 6-degrees-of-freedom (6DOF) model for the fixed-wing aircraft.
+A MATLAB simulation framework for a multicopter with a 2-axis gimbal that mimics the camera pose of a fixed-wing aircraft performing aerobatic maneuvers (loop, roll, straight flight). The core idea: a drone + gimbal can reproduce the exact camera viewpoint of an airplane, even during aggressive maneuvers.
+
+## Theory
+
+### Problem Statement
+
+Given a fixed-wing aircraft with a body-fixed camera, compute multicopter and gimbal inputs so that the multicopter's gimballed camera reproduces the same pose (position + orientation) in SE(3) at all times.
+
+### System Models
+
+**Fixed-wing aircraft** (eq. 4 in the paper): 13-state model with position, body-frame velocity, quaternion attitude, and body rates. Full aerodynamic force/moment model with lift, drag, side force, and control surfaces (thrust, aileron, elevator, rudder).
+
+**Multicopter with 2-axis gimbal** (eq. 10): 17-state extended model:
+- Position (3), quaternion (4), world-frame velocity (3), body rates (3) = 13 core states
+- Gimbal angles: phi_g (roll), theta_g (pitch) = 2 states
+- Thrust double integrator: zeta (thrust), xi (thrust rate) = 2 DFL extended states
+
+The gimbal rotation is `R_gb = R_x(phi_g) * R_y(theta_g)` — a roll-pitch gimbal where:
+- phi_g rotates the camera about the drone's body x-axis (forward)
+- theta_g rotates about the y-axis (lateral)
+
+### Camera-Pose Mimicry (Section III)
+
+The multicopter camera pose `y_MC = [p_M + R(q_M)*t_G, q_M * q_G]` must equal the fixed-wing camera pose `y_AC = [p_A + R(q_A)*t_AC, q_A]`.
+
+**Position matching**: The DFL controller tracks the fixed-wing position (with lever-arm compensation if applicable).
+
+**Orientation matching**: `q_M * q_G = q_A`, so `q_G = q_M^{-1} * q_A`. The drone's attitude splits into:
+- **Tilt** (set by thrust direction from position tracking)
+- **Free yaw** (scheduled to keep gimbal angles feasible)
+
+The gimbal then absorbs the remaining roll-pitch offset.
+
+### Output Full Actuation on SE(3) (Section III-A)
+
+The Jacobian from inputs to camera acceleration/twist is block-triangular (eq. 9):
+```
+J = [I_3,  0  ]
+    [ 0,  S(phi,theta)]
+```
+where S is the input-twist matrix with `det(S) = cos(theta)*cos(phi)`. Since `rank(J) = 6` away from gimbal singularities, the camera pose is **output fully actuated** and **small-time locally controllable (STLC)** on SE(3).
+
+### Dynamic Feedback Linearization (Section IV)
+
+Standard static feedback linearization fails because the decoupling matrix is singular — thrust affects acceleration directly but not through the attitude torques. The solution: add a **double integrator on thrust** (eq. 16), making thrust an internal state driven by its second derivative.
+
+**Extended system**: 15 effective states (17 total - 2 gimbal, which are controlled separately), 4 inputs `[ddot_T, tau_phi, tau_theta, tau_psi]`, 4 outputs `[x, y, z, R(2,1)]`.
+
+**Relative degrees**: `r = [4, 4, 4, 2]`, sum = 14 = 15 - 1 (quaternion constraint), satisfying the exact linearization condition (eq. 17).
+
+The DFL control law (eq. 19):
+```
+u_hat = alpha(x) + beta(x) * v
+```
+where:
+- `alpha(x) = -Delta(x)^{-1} * b(x)` cancels nonlinear drift
+- `beta(x) = Delta(x)^{-1}` decouples input-output channels
+- `v = [v_pos; v_yaw]` is the virtual control with error feedback
+
+**Position virtual control** (4th-order error dynamics):
+```
+v_pos = snap_ref - c3*(jerk - jerk_ref) - c2*(acc - acc_ref) - c1*(vel - vel_ref) - c0*(pos - pos_ref)
+```
+
+**Yaw virtual control** (2nd-order, using R(2,1) = sin(yaw)*cos(pitch)):
+```
+v_yaw = -c5*(R21_dot - R21_dot_ref) - c4*(R21 - R21_ref)
+```
+
+### Gimbal Control (Geometric SO(3))
+
+The gimbal tracks the relative orientation `R_gb_desired = R_bw^T * R_fw_w` using:
+1. **SO(3) error**: `e_R = 0.5 * vee(R_des^T * R - R^T * R_des)`
+2. **Feedforward**: relative angular velocity between FW and drone, transformed to gimbal frame
+3. **Kinematic inversion**: maps gimbal-frame angular velocity to joint rates `[phi_dot, theta_dot]`
 
 ## Project Structure
 
-The project is organized into the following directories:
+```
+Ghost_Tracking_DFL/
+├── main.m                          # Entry point — runs simulation
+├── README.md                       # This file
+├── DFL_controller/
+│   ├── controller_generation.m     # Symbolic derivation of alpha/beta (Lie derivatives)
+│   ├── alpha_func.m                # Auto-generated: drift cancellation term
+│   ├── beta_func.m                 # Auto-generated: decoupling matrix inverse
+│   ├── dfl_controller.m            # Real-time DFL control law
+│   ├── geometric_gimbal_controller.m  # SO(3) geometric gimbal controller
+│   ├── gimbal_controller.m         # Alternative kinematic gimbal controller
+│   ├── alpha_gimbal_func.m         # Auto-generated gimbal alpha (legacy)
+│   └── beta_gimbal_func.m          # Auto-generated gimbal beta (legacy)
+├── models/
+│   ├── unified_dynamics.m          # ODE function combining FW + quad dynamics
+│   ├── fw_6dof_quat.m             # 6-DOF fixed-wing model with full aerodynamics
+│   └── quadrotor_dynamics_realtime.m  # Quadrotor + gimbal dynamics with DFL
+├── trajectory_configs/
+│   ├── config_loop.m              # Loop maneuver configuration
+│   ├── config_roll.m              # Roll maneuver configuration
+│   └── config_straight.m          # Straight flight configuration
+├── utilities/
+│   ├── plot_results.m             # Comprehensive result visualization
+│   ├── Lie_derivative.m           # Recursive Lie derivative computation
+│   ├── wrapToPi.m                 # Angle wrapping to [-pi, pi]
+│   ├── unwrapAngle.m              # Angle unwrapping for smooth plotting
+│   ├── correctAngleJump.m         # Angle jump correction
+│   ├── neglectAngleJump.m         # Angle jump rejection
+│   └── stlread.m                  # STL file reader for CAD models
+├── CAD/
+│   ├── aero.stl                   # Fixed-wing aircraft 3D model
+│   └── quad.stl                   # Quadrotor 3D model
+└── results/                       # Generated result plots (PDF)
+```
 
--   **`DFL_controller/`**: Contains the scripts related to the Dynamic Feedback Linearization Controller.
--   **`models/`**: Contains the dynamics models for the quadrotor and the fixed-wing aircraft.
--   **`utilities/`**: Contains helper functions used by the other scripts.
+## How to Run
 
-## Files and Descriptions
+1. Open MATLAB and navigate to the repository root.
+2. Open `main.m` and set `config_to_run` to the desired maneuver:
+   - `'loop'` — vertical loop
+   - `'roll'` — aileron roll
+   - `'straight'` — level flight
+3. Run `main.m`. The simulation uses `ode45` and generates 5 result plots:
+   - 3D trajectory with STL vehicle models
+   - Position and orientation tracking comparison
+   - Control inputs (thrust, moments, gimbal rates)
+   - Drone state evolution
+   - Debug angle comparison plots
 
-### Configuration
+Results are saved as PDFs in `results/results_<maneuver>/`.
 
--   **`config.m`**: This file contains all the parameters for the simulation, including the quadrotor and fixed-wing aircraft parameters, as well as the simulation time and time step.
+## Simulation Flow
 
-### Main Simulation Script
+```
+main.m
+ ├── Load config_<maneuver>.m (parameters, gains, initial conditions)
+ ├── Initialize combined state [quad(17); fw(13)]
+ └── ode45(@unified_dynamics)
+      ├── fw_6dof_quat()        → FW state derivative + acc/jerk/snap reference
+      └── quadrotor_dynamics_realtime()  → Quad state derivative
+           ├── dfl_controller()          → [ddot_T, tau_phi, tau_theta, tau_psi]
+           │    ├── alpha_func()         → nonlinearity cancellation
+           │    └── beta_func()          → input-output decoupling
+           └── geometric_gimbal_controller() → [phi_g_dot, theta_g_dot]
+```
 
--   **`test_fw_realtime_tracking.m`**: This is the main script to run the simulation. It first runs `config.m` to load all the necessary parameters, then initializes the initial conditions for both the quadrotor and the fixed-wing aircraft, and then uses the `ode45` solver to simulate their flight over time. After the simulation, it generates several plots to visualize the results, including the 3D trajectories, position tracking error, and gimbal angle performance.
+## Regenerating the DFL Controller
 
-### DFL Controller
+If you modify the system dynamics or outputs, regenerate `alpha_func.m` and `beta_func.m`:
 
--   **`DFL_controller/controller_generation.m`**: This is a symbolic math script that uses MATLAB's Symbolic Math Toolbox to derive the feedback linearization controller for the quadrotor-gimbal system. It defines the system's dynamics symbolically, specifies the desired outputs (position, yaw, and gimbal angles), and then automatically computes the relative degree of each output. The script then calculates the decoupling matrix and drift terms, which are used to derive the control law. Finally, it generates two MATLAB functions, `alpha_gimbal_func.m` and `beta_gimbal_func.m`, which implement the derived control law.
+1. Navigate to `DFL_controller/`
+2. Run `controller_generation.m` (requires Symbolic Math Toolbox)
+3. The script computes Lie derivatives symbolically, derives the decoupling matrix and drift terms, and generates optimized MATLAB functions.
 
--   **`DFL_controller/alpha_gimbal_func.m`**: This is an auto-generated function that calculates the `alpha` component of the feedback linearization control law. This component is a function of the system's state and parameters, and it represents the part of the control input that cancels out the nonlinearities in the system's dynamics.
+Note: The gravity constant `g` does not appear in the generated functions because it is constant and vanishes after repeated differentiation (Lie derivatives eliminate constant terms at orders > 2).
 
--   **`DFL_controller/beta_gimbal_func.m`**: This is an auto-generated function that calculates the `beta` component of the feedback linearization control law, which is the decoupling matrix. This matrix multiplies the virtual control input `v` to produce the actual control input `u`.
+## Key Design Decisions
 
-### Dynamics Models
+1. **R(2,1) for yaw output**: Using the rotation matrix element `R(2,1) = sin(yaw)*cos(pitch)` instead of the Euler yaw angle avoids gimbal-lock singularities at pitch = ±90° and provides smooth quaternion-based control.
 
--   **`models/unified_dynamics.m`**: This function acts as the bridge between the fixed-wing aircraft and the quadrotor. At each time step, it first calls `fw_6dof_quat.m` to calculate the state of the fixed-wing based on predefined control inputs (thrust and elevator angle). The resulting fixed-wing state (position, velocity, acceleration, etc.) is then used as the reference trajectory for the quadrotor. Finally, it calls `quadrotor_dynamics_realtime.m` to compute the quadrotor's state, which attempts to follow this reference trajectory.
+2. **Roll-pitch gimbal (R_x * R_y)**: The gimbal has roll (x-axis) and pitch (y-axis) DOFs. Combined with the drone's free body yaw, this provides full 3-DOF rotational control of the camera. Singularity occurs at `phi_g = ±90°`.
 
--   **`models/fw_6dof_quat.m`**: This function implements a standard 6-degrees-of-freedom (6DOF) model for the fixed-wing aircraft using quaternions to represent its attitude. It calculates the aerodynamic forces and moments based on the aircraft's state and control inputs (thrust, elevator, aileron, and rudder). These forces and moments are then used to determine the aircraft's translational and rotational acceleration, which are integrated over time to simulate its motion. The function also outputs the acceleration, jerk, and snap of the fixed-wing in the NED frame, which are used as reference inputs for the quadrotor's controller.
+3. **Dynamic thrust extension**: A double integrator on thrust delays its appearance to higher-order derivatives, raising the relative degree from [2,2,2,2] (singular) to [4,4,4,2] (non-singular), enabling exact input-output decoupling.
 
--   **`models/quadrotor_dynamics_realtime.m`**: This function implements the quadrotor's dynamics and a Differential Flatness Controller (DFL). This controller calculates the necessary motor thrusts and moments to make the quadrotor follow the reference trajectory provided by the fixed-wing aircraft. The script also includes a first-order model for the gimbal, which is controlled to point in the direction of the fixed-wing's velocity vector. The controller uses feedback linearization to simplify the control design, and the `alpha_gimbal_func.m` and `beta_gimbal_func.m` functions are the result of a symbolic derivation of the feedback linearization law.
+4. **Jerk feedforward**: The fixed-wing model computes NED-frame jerk analytically as `R * (omega x F/m)`, providing feedforward for the DFL's 4th-order position channel. This significantly improves tracking during aggressive maneuvers.
 
-### Utilities
+## Gain Tuning Guide
 
--   **`utilities/Lie_derivative.m`**: This is a helper function that contains a recursive function to compute the Lie derivative of a scalar function `h` with respect to a vector field `f`. This is a fundamental operation in nonlinear control theory and is used extensively in the `controller_generation.m` script to derive the feedback linearization control law.
+### Position channel (c0-c3)
+The 4th-order error dynamics have characteristic polynomial `s^4 + c3*s^3 + c2*s^2 + c1*s + c0`. For critically-damped response with bandwidth `w`:
+- `c0 = w^4`, `c1 = 4*w^3`, `c2 = 6*w^2`, `c3 = 4*w`
 
--   **`utilities/stlread.m`**: A function to read STL files.
+### Yaw channel (c4-c5)
+2nd-order: `s^2 + c5*s + c4`. For bandwidth `wn` and damping `zeta`:
+- `c4 = wn^2`, `c5 = 2*zeta*wn`
 
-## How to Run the Simulation
-
-1.  Open MATLAB.
-2.  Navigate to the directory containing these files.
-3.  Run the `test_fw_realtime_tracking.m` script.
-
-The script will run the simulation and generate several plots showing the results.
-
-## Simulation Workflow
-
-1.  **`test_fw_realtime_tracking.m`** runs **`config.m`** to load all parameters.
-2.  **`test_fw_realtime_tracking.m`** sets up the initial conditions.
-3.  It calls `ode45` with the **`models/unified_dynamics.m`** function.
-4.  **`models/unified_dynamics.m`** calls **`models/fw_6dof_quat.m`** to get the fixed-wing's state.
-5.  The fixed-wing's state is used as a reference for the quadrotor.
-6.  **`models/unified_dynamics.m`** then calls **`models/quadrotor_dynamics_realtime.m`** to calculate the quadrotor's state.
-7.  **`models/quadrotor_dynamics_realtime.m`** uses the DFL controller, which in turn calls **`DFL_controller/alpha_gimbal_func.m`** and **`DFL_controller/beta_gimbal_func.m`** to compute the control inputs.
-8.  The state derivatives are returned to `ode45`, which integrates them over time.
-9.  After the simulation is complete, **`test_fw_realtime_tracking.m`** plots the results.
+### Gimbal (kp_R_gimbal, kp_omega_gimbal)
+- `kp_R_gimbal`: proportional gain on SO(3) orientation error
+- `kp_omega_gimbal`: derivative gain (damping) on angular velocity error

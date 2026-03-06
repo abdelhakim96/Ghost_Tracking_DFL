@@ -86,9 +86,10 @@ for i = 1:10:length(t)
               2*(q1*q3 - q0*q2), 2*(q2*q3 + q0*q1), 1 - 2*(q1^2 + q2^2)];
     phi_g = quad_state(i, 14);
     theta_g = quad_state(i, 15);
-    R_gb = [cos(phi_g)*cos(theta_g), -sin(phi_g), cos(phi_g)*sin(theta_g);
-            sin(phi_g)*cos(theta_g),  cos(phi_g), sin(phi_g)*sin(theta_g);
-           -sin(theta_g), 0, cos(theta_g)];
+    % R_gb = R_x(phi_g) * R_y(theta_g) — roll-pitch gimbal
+    R_gb = [cos(theta_g),                       0,              sin(theta_g);
+            sin(phi_g)*sin(theta_g),  cos(phi_g),  -sin(phi_g)*cos(theta_g);
+           -cos(phi_g)*sin(theta_g),  sin(phi_g),   cos(phi_g)*cos(theta_g)];
     R_gimbal_w = R_quad * R_gb;
     pos_quad = [x_quad(i,1), x_quad(i,2), -x_quad(i,3)];
 
@@ -163,9 +164,10 @@ for i = 1:length(t)
 
     phi_g_actual = quad_state(i, 14);
     theta_g_actual = quad_state(i, 15);
-    R_gb = [cos(phi_g_actual)*cos(theta_g_actual), -sin(phi_g_actual), cos(phi_g_actual)*sin(theta_g_actual);
-            sin(phi_g_actual)*cos(theta_g_actual),  cos(phi_g_actual), sin(phi_g_actual)*sin(theta_g_actual);
-           -sin(theta_g_actual),                 0,                cos(theta_g_actual)];
+    % R_gb = R_x(phi_g) * R_y(theta_g) — roll-pitch gimbal
+    R_gb = [cos(theta_g_actual),                            0,               sin(theta_g_actual);
+            sin(phi_g_actual)*sin(theta_g_actual),  cos(phi_g_actual),  -sin(phi_g_actual)*cos(theta_g_actual);
+           -cos(phi_g_actual)*sin(theta_g_actual),  sin(phi_g_actual),   cos(phi_g_actual)*cos(theta_g_actual)];
     R_gimbal_w = R_bw * R_gb;
 
     % Calculate raw angles with gimbal lock check
