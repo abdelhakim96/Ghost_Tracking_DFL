@@ -112,9 +112,17 @@ dfl_gains.c1 = 23400.0;   % Velocity error
 dfl_gains.c2 = 550.0;     % Acceleration error
 dfl_gains.c3 = 100.0;     % Jerk error
 
-% Yaw channel
-dfl_gains.c4 = 1.0;       % R(2,1) error
-dfl_gains.c5 = 0.0;       % R(2,1) rate
+% Yaw channel (relative degree 2: R(2,1)'' + c5*R(2,1)' + c4*R(2,1) = ref)
+% CRITICAL: c5 MUST be > 0 for stability. With c5=0, the yaw is an
+% undamped oscillator (s^2 + c4 = 0 -> pure imaginary roots). During
+% the roll, lateral forces perturb the heading, exciting the undamped
+% mode and causing divergence. The loop works with c5=0 only because
+% there's no lateral disturbance to excite the yaw mode.
+%
+% Design: wn = 3 rad/s, zeta = 1.0 (critically damped)
+%   c4 = wn^2 = 9,  c5 = 2*zeta*wn = 6
+dfl_gains.c4 = 9.0;       % R(2,1) proportional (wn^2)
+dfl_gains.c5 = 6.0;       % R(2,1) derivative (2*zeta*wn) — DAMPING
 
 % Gimbal SO(3) controller gains
 dfl_gains.kp_R_gimbal = 10;
