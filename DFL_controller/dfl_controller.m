@@ -93,8 +93,18 @@ v_yaw = -c5 * (y4_dot_drone - y4_dot_ref) - c4 * (y4_drone - y4_ref);
 % -----------------------------------------------------------------------
 v = [v_pos; v_yaw];
 
-alpha_val = alpha_func(state, 0, 0, 0, Ix, Iy, Iz, zeta, xi, m);
-beta_val = beta_func(state, 0, 0, 0, Ix, Iy, Iz, zeta, xi, m);
+% Regularize zeta to prevent 1/zeta singularity in alpha_func.
+% alpha_func reads zeta from state(14), so we clamp it in the state copy.
+% This is a safety net — with proper initial conditions, zeta should
+% never approach zero during normal operation.
+zeta_min = 0.1 * m * g;  % 10% of hover thrust
+state_safe = state;
+if abs(state_safe(14)) < zeta_min
+    state_safe(14) = zeta_min * sign(state_safe(14) + 1e-10);
+end
+
+alpha_val = alpha_func(state_safe, 0, 0, 0, Ix, Iy, Iz, zeta, xi, m);
+beta_val = beta_func(state_safe, 0, 0, 0, Ix, Iy, Iz, zeta, xi, m);
 u = alpha_val + beta_val * v;
 
 end

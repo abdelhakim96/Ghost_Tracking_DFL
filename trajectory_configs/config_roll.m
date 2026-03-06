@@ -5,25 +5,29 @@
 % The drone tracks position and keeps yaw stable (velocity heading).
 % The gimbal handles all camera orientation matching during the roll.
 %
-% CRITICAL: The FW must start near trimmed level flight so that the initial
-% NED acceleration is close to zero. Otherwise, the large acceleration
-% mismatch drives the DFL thrust state (zeta) through zero, triggering
-% the 1/zeta singularity in alpha_func.m.
+% CRITICAL: The FW must start in aerodynamic TRIM so that the initial
+% NED acceleration is ~zero. Otherwise, the acceleration mismatch drives
+% the DFL thrust state (zeta) through zero, triggering the 1/zeta
+% singularity in alpha_func.m within ~50 ms.
 %
 % Trim conditions at V=40 m/s:
 %   qbar = 0.5*1.225*40^2 = 980 Pa,  qbar*S = 8918 N
 %   CL_trim = W/(qbar*S) = 2845/8918 = 0.319
-%   alpha_trim = (CL_trim - CL0)/CL_alpha = -0.014 rad
+%   alpha_trim = (CL_trim - CL0)/CL_alpha = -0.0127 rad
+%   w0 = V*sin(alpha_trim) = -0.51 m/s  (initial body z-velocity for trim)
 %   Cm_trim: de = -(Cm0 + Cm_alpha*alpha)/Cm_de = 0.012 rad
 %   CD_trim = CD0 + k*CL^2 = 0.045,  Drag = 402 N  =>  Thrust ~ 400 N
+%
+% With w0=-0.51: residual z-acceleration ~ 0.04 m/s^2 (vs 2.25 without).
+% Drone position and velocity EXACTLY match FW at t=0 (zero initial error).
 
 %% Simulation parameters
-t_end = 4.0;          % Long enough for full roll + settling
-delta_t = 0.01;       % Time step (match loop config)
+t_end = 5.0;          % Long enough for full roll + settling
+delta_t = 0.01;       % Time step
 t_sim = 0:delta_t:t_end;
 
-%% Quadrotor parameters (same as loop config — proven to work)
-quad_params.m = 0.5;        % Mass (kg) — light, agile drone
+%% Quadrotor parameters (same as loop config)
+quad_params.m = 0.5;        % Mass (kg)
 quad_params.Ix = 0.0023;    % Moment of inertia x (kg*m^2)
 quad_params.Iy = 0.0023;    % Moment of inertia y (kg*m^2)
 quad_params.Iz = 0.0046;    % Moment of inertia z (kg*m^2)
@@ -56,17 +60,22 @@ fw_params.Cm0 = 0.0; fw_params.Cm_alpha = -1.5; fw_params.Cm_q = -15.0; fw_param
 fw_params.Cn_beta = 0.15; fw_params.Cn_p = -0.1; fw_params.Cn_r = -0.4; fw_params.Cn_da = 0.04; fw_params.Cn_dr = -0.1;
 
 %% Initial Conditions
-% Fixed-wing: near-trim level flight at 40 m/s, altitude 100 m
-% At 40 m/s the lift approximately equals weight, so the initial
-% NED acceleration is near zero — no large transient to destabilize DFL.
+% Fixed-wing: TRIMMED level flight at 40 m/s, altitude 100 m
+% Set w0 = V*sin(alpha_trim) so that CL matches weight at t=0.
+% This eliminates the initial acceleration mismatch that causes
+% the DFL singularity.
 fw_initial.u0 = 40;
 fw_initial.v0 = 0;
-fw_initial.w0 = 0;
+fw_initial.w0 = -0.51;     % Trim alpha: atan2(-0.51, 40) = -0.0127 rad
 fw_initial.x0 = [0; 0; -100; fw_initial.u0; fw_initial.v0; fw_initial.w0; 1; 0; 0; 0; 0; 0; 0];
 
-% Drone: co-located with fixed-wing (small offset), matching velocity
-quad_initial.pos = [-1.0; 0; -99.9];
-quad_initial.vel = [fw_initial.u0; 0; 0];
+% Drone: EXACTLY co-located with FW (zero initial error!)
+% Any position/velocity offset creates enormous snap commands through
+% the high DFL gains, driving zeta through zero.
+quad_initial.pos = [0; 0; -100];
+% FW NED velocity = R_BN * [u0; v0; w0]. With R=I: v_ned = [u0; 0; w0].
+% Must match EXACTLY to avoid velocity error * c1 = 23400 transient.
+quad_initial.vel = [fw_initial.u0; 0; fw_initial.w0];
 quad_initial.angle = [0; 0; 0.0];
 quad_initial.ang_vel = [0; 0; 0];
 quad_initial.rpm = [0; 0; 0; 0];
@@ -84,33 +93,29 @@ roll_duration = 2.0;  % 2.0s for a full roll (moderate rate ~180 deg/s)
 roll_end = roll_start + roll_duration;
 
 % Aileron input: sine pulse for one full roll
-% At 40 m/s, qbar*S*b*Cl_da still provides ample roll authority
 aileron_amp = -0.4;
 aileron_input = zeros(size(t_sim));
 idx = t_sim >= roll_start & t_sim <= roll_end;
 aileron_input(idx) = aileron_amp * sin(pi * (t_sim(idx) - roll_start) / roll_duration);
 fw_controls.aileron = aileron_input;
 
-% Elevator near trim value (~0.012 rad for level flight at 40 m/s)
-% Small positive deflection to balance the pitching moment
-fw_controls.elevator = 0.01 * ones(size(t_sim));
+% Elevator at trim value (0.012 rad for level flight at 40 m/s)
+fw_controls.elevator = 0.012 * ones(size(t_sim));
 
 % No rudder
 fw_controls.rudder = zeros(size(t_sim));
 
-%% DFL Controller Gains (matched to loop config structure)
-% Position channel — same high gains as loop (proven stable)
+%% DFL Controller Gains
+% Position channel — same gains as loop config
 dfl_gains.c0 = 53250.0;   % Position error
 dfl_gains.c1 = 23400.0;   % Velocity error
 dfl_gains.c2 = 550.0;     % Acceleration error
 dfl_gains.c3 = 100.0;     % Jerk error
 
-% Yaw channel — low gains, just stabilize heading
-% (gimbal handles all FW orientation tracking)
-dfl_gains.c4 = 1.0;       % R(2,1) error (same as loop)
-dfl_gains.c5 = 0.0;       % R(2,1) rate (same as loop)
+% Yaw channel
+dfl_gains.c4 = 1.0;       % R(2,1) error
+dfl_gains.c5 = 0.0;       % R(2,1) rate
 
 % Gimbal SO(3) controller gains
-% Higher gains than loop to track the fast-changing roll orientation
-dfl_gains.kp_R_gimbal = 8;
-dfl_gains.kp_omega_gimbal = 2;
+dfl_gains.kp_R_gimbal = 10;
+dfl_gains.kp_omega_gimbal = 3;
