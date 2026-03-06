@@ -1,9 +1,9 @@
 %% Configuration: Roll Maneuver
 % Fixed-wing performs a full aileron roll while the multicopter + gimbal
-% tracks the camera pose using DFL position control + geometric gimbal control.
+% tracks the camera pose using DFL position control + integrated gimbal control.
 %
-% The drone tracks position and keeps yaw stable (velocity heading).
-% The gimbal handles all camera orientation matching during the roll.
+% The drone tracks position and yaw (scheduled from FW orientation).
+% The gimbal handles camera roll/pitch matching via feedforward + feedback.
 %
 % CRITICAL: The FW must start in aerodynamic TRIM so that the initial
 % NED acceleration is ~zero. Otherwise, the acceleration mismatch drives
@@ -70,11 +70,8 @@ fw_initial.w0 = -0.51;     % Trim alpha: atan2(-0.51, 40) = -0.0127 rad
 fw_initial.x0 = [0; 0; -100; fw_initial.u0; fw_initial.v0; fw_initial.w0; 1; 0; 0; 0; 0; 0; 0];
 
 % Drone: EXACTLY co-located with FW (zero initial error!)
-% Any position/velocity offset creates enormous snap commands through
-% the high DFL gains, driving zeta through zero.
 quad_initial.pos = [0; 0; -100];
 % FW NED velocity = R_BN * [u0; v0; w0]. With R=I: v_ned = [u0; 0; w0].
-% Must match EXACTLY to avoid velocity error * c1 = 23400 transient.
 quad_initial.vel = [fw_initial.u0; 0; fw_initial.w0];
 quad_initial.angle = [0; 0; 0.0];
 quad_initial.ang_vel = [0; 0; 0];
@@ -106,24 +103,25 @@ fw_controls.elevator = 0.012 * ones(size(t_sim));
 fw_controls.rudder = zeros(size(t_sim));
 
 %% DFL Controller Gains
-% Position channel — same gains as loop config
-dfl_gains.c0 = 53250.0;   % Position error
-dfl_gains.c1 = 23400.0;   % Velocity error
-dfl_gains.c2 = 550.0;     % Acceleration error
-dfl_gains.c3 = 100.0;     % Jerk error
+% Position channel — double critically-damped design at wn = 12 rad/s
+%   Characteristic polynomial: (s^2 + 2*wn*s + wn^2)^2
+%   = s^4 + 4*wn*s^3 + 6*wn^2*s^2 + 4*wn^3*s + wn^4
+%   c3 = 4*wn = 48, c2 = 6*wn^2 = 864, c1 = 4*wn^3 = 6912, c0 = wn^4 = 20736
+dfl_gains.c0 = 20736.0;   % Position error (wn^4)
+dfl_gains.c1 = 6912.0;    % Velocity error (4*wn^3)
+dfl_gains.c2 = 864.0;     % Acceleration error (6*wn^2)
+dfl_gains.c3 = 48.0;      % Jerk error (4*wn)
 
 % Yaw channel (relative degree 2: R(2,1)'' + c5*R(2,1)' + c4*R(2,1) = ref)
-% CRITICAL: c5 MUST be > 0 for stability. With c5=0, the yaw is an
-% undamped oscillator (s^2 + c4 = 0 -> pure imaginary roots). During
-% the roll, lateral forces perturb the heading, exciting the undamped
-% mode and causing divergence. The loop works with c5=0 only because
-% there's no lateral disturbance to excite the yaw mode.
-%
 % Design: wn = 3 rad/s, zeta = 1.0 (critically damped)
 %   c4 = wn^2 = 9,  c5 = 2*zeta*wn = 6
 dfl_gains.c4 = 9.0;       % R(2,1) proportional (wn^2)
-dfl_gains.c5 = 6.0;       % R(2,1) derivative (2*zeta*wn) — DAMPING
+dfl_gains.c5 = 6.0;       % R(2,1) derivative (2*zeta*wn)
 
-% Gimbal SO(3) controller gains
+% Gimbal proportional gain (bandwidth for angle tracking)
+% Higher = faster tracking but more aggressive commands
+dfl_gains.kp_gimbal = 10;
+
+% Legacy gains (kept for compatibility with config_loop)
 dfl_gains.kp_R_gimbal = 10;
 dfl_gains.kp_omega_gimbal = 3;

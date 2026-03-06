@@ -4,16 +4,26 @@
 % linearization control law for the multicopter with dynamic thrust
 % extension (double integrator on thrust, eq. 16 in the paper).
 %
-% Extended system (eq. 16):
+% --- Position + Yaw block (this script) ---
 %   State: x_hat = [p_M; q_M; v_M; omega_M; zeta; xi]  (15 states)
 %   Inputs: u_hat = [ddot_T; tau_phi; tau_theta; tau_psi] (4 inputs)
 %   Outputs: y = [x; y; z; R(2,1)]                       (4 outputs)
+%   Relative degrees: r = [4, 4, 4, 2], sum = 14 = 15 - 1
 %
-% The relative degrees are r = [4, 4, 4, 2], sum = 14 = 15 - 1
-% (one constraint from unit-norm quaternion).
+% --- Full paper architecture (6 outputs) ---
+% The paper's full system has 6 outputs with r = [4, 4, 4, 2, 1, 1]:
+%   Outputs 1-4: position + drone yaw (this script, alpha/beta functions)
+%   Outputs 5-6: gimbal angles phi_G, theta_G (relative degree 1)
+%
+% The decoupling matrix is BLOCK DIAGONAL because gimbal angles only
+% appear in the gimbal dynamics (rate-controlled), so the position+yaw
+% block and gimbal block decouple exactly. This means:
+%   - alpha_func/beta_func from this script handle outputs 1-4
+%   - Gimbal outputs 5-6 are trivially: u_5 = v_5, u_6 = v_6
+%   - The 6-output DFL is assembled in dfl_controller.m
 %
 % The script computes:
-%   Delta(x) = decoupling matrix (eq. 14)
+%   Delta(x) = decoupling matrix (eq. 14) for the 4x4 block
 %   b(x)     = drift terms (eq. 15)
 %   alpha(x) = -Delta^{-1} * b(x)
 %   beta(x)  = Delta^{-1}

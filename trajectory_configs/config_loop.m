@@ -77,3 +77,6 @@ dfl_gains.c_ff_theta = 1.0;    % Feedforward gain for gimbal pitch
 
 dfl_gains.kp_R_gimbal = 5;
 dfl_gains.kp_omega_gimbal = 1;
+
+% Gimbal proportional gain (used by unified DFL controller)
+dfl_gains.kp_gimbal = 10;

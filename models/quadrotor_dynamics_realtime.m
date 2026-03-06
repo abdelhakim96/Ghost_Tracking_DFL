@@ -1,20 +1,11 @@
 function state_dot = quadrotor_dynamics_realtime(t, state, xd, vd, ad, jd, sd, psid, fw_state, dfl_gains)
-% QUADROTOR_DYNAMICS_REALTIME  Multicopter + 2-axis gimbal dynamics with DFL control.
+% QUADROTOR_DYNAMICS_REALTIME  Multicopter + 2-axis gimbal dynamics with unified DFL control.
 %
-% Implements the extended multicopter dynamics from eq. (16) in the paper:
-%   p_dot     = R(q_M) * v_M
-%   q_dot     = 0.5 * G(q_M) * omega_M
-%   v_dot     = R*[0;0;zeta]/m - [0;0;g]   (world-frame formulation)
-%   omega_dot = J^{-1}*(-omega x J*omega + tau)
-%   q_MC_dot  = 0.5 * G(q_MC) * u_G        (gimbal kinematics)
-%   zeta_dot  = xi                           (DFL double integrator)
-%   xi_dot    = ddot_T                       (DFL control input)
+% The DFL controller produces all 6 controls:
+%   [ddot_T; tau_phi; tau_theta; tau_psi; phi_g_dot; theta_g_dot]
 %
 % State vector (17 elements):
 %   [pos(3); quat(4); vel_world(3); omega_body(3); phi_g; theta_g; zeta; xi]
-%
-% The DFL controller and gimbal controller are called as separate functions.
-% A persistent history array stores control inputs and angles for plotting.
 
 persistent history;
 
@@ -73,7 +64,6 @@ corrected_yaw = correctAngleJump(yaw, previous_yaw);
 % -----------------------------------------------------------------------
 % Gimbal orientation in world frame (for debugging)
 % -----------------------------------------------------------------------
-% R_gb = R_x(phi_g) * R_y(theta_g) — roll-pitch gimbal (paper eq. for q_MC)
 R_gb = [cos(theta_g),                  0,             sin(theta_g);
         sin(phi_g)*sin(theta_g),  cos(phi_g),  -sin(phi_g)*cos(theta_g);
        -cos(phi_g)*sin(theta_g),  sin(phi_g),   cos(phi_g)*cos(theta_g)];
@@ -81,21 +71,17 @@ R_gimbal_w = R_bw * R_gb;
 gimbal_global_roll = atan2(R_gimbal_w(3,2), R_gimbal_w(3,3));
 
 % -----------------------------------------------------------------------
-% Call controllers
+% Call unified DFL controller (produces all 6 controls)
 % -----------------------------------------------------------------------
-% DFL controller operates on 15-state drone vector (no gimbal states)
-drone_state = [state(1:13); state(16:17)];
-u_drone = dfl_controller(t, drone_state, xd, vd, ad, jd, sd, psid, fw_state, dfl_gains);
+u_all = dfl_controller(t, state, xd, vd, ad, jd, sd, psid, fw_state, dfl_gains);
 
-% Geometric gimbal controller operates on full 17-state vector
-u_gimbal = geometric_gimbal_controller(state, fw_state, dfl_gains);
+% Split into drone controls and gimbal controls
+u_drone = u_all(1:4);    % [ddot_T; tau_phi; tau_theta; tau_psi]
+u_gimbal = u_all(5:6);   % [phi_g_dot; theta_g_dot]
 
 % -----------------------------------------------------------------------
 % Dynamics: translational (world frame)
 % -----------------------------------------------------------------------
-% Thrust acts along body +z, rotated to world frame.
-% Convention: zeta > 0 produces upward thrust when drone is level,
-% and gravity is subtracted (a = R*[0;0;T]/m - [0;0;g]).
 F_thrust = R_bw * [0; 0; zeta];
 a_ = (F_thrust/m) - [0; 0; g];
 
@@ -110,7 +96,6 @@ q_dot = 0.5 * [-q1, -q2, -q3;  % Quaternion kinematics: q_dot = 0.5*G(q)*omega
 v_dot = a_;                     % Translational dynamics
 
 % Rotational dynamics: omega_dot = J^{-1}*(-omega x J*omega + tau)
-% DFL outputs: u_drone = [ddot_T; tau_phi; tau_theta; tau_psi]
 omega_dot = [ (u_drone(2)/Ix) + (omega_b(2)*omega_b(3)*(Iy - Iz))/Ix;
               (u_drone(3)/Iy) - (omega_b(1)*omega_b(3)*(Ix - Iz))/Iy;
               (u_drone(4)/Iz) + (omega_b(1)*omega_b(2)*(Ix - Iy))/Iz ];
@@ -119,7 +104,7 @@ omega_dot = [ (u_drone(2)/Ix) + (omega_b(2)*omega_b(3)*(Iy - Iz))/Ix;
 zeta_dot = xi;          % zeta_dot = xi (thrust rate)
 xi_dot = u_drone(1);    % xi_dot = ddot_T (thrust acceleration, DFL input)
 
-% Gimbal joint rates (first-order gimbal dynamics)
+% Gimbal joint rates (from unified DFL controller)
 phi_g_dot = u_gimbal(1);
 theta_g_dot = u_gimbal(2);
 

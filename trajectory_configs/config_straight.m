@@ -73,3 +73,7 @@ dfl_gains.c_phi = 0.0;      % Proportional gain for gimbal roll
 dfl_gains.c_theta = 0.0;    % Proportional gain for gimbal pitch
 dfl_gains.c_ff_phi = 1.0;      % Feedforward gain for gimbal roll
 dfl_gains.c_ff_theta = 1.0;    % Feedforward gain for gimbal pitch
+
+dfl_gains.kp_R_gimbal = 5;
+dfl_gains.kp_omega_gimbal = 1;
+dfl_gains.kp_gimbal = 10;
