@@ -4,9 +4,13 @@ function out = run_compare3(config_to_run, tag)
 
     here = fileparts(mfilename('fullpath'));
     cd(here);
-    addpath('DFL_controller'); addpath('models'); addpath('utilities'); addpath('trajectory_configs');
+    addpath('DFL_controller'); addpath('models'); addpath('utilities'); addpath('trajectory_configs'); addpath('fw_maneuvers');
 
-    run(fullfile('trajectory_configs', ['config_' config_to_run '.m']));
+    cpath = fullfile('trajectory_configs', ['config_' config_to_run '.m']);
+    if ~isfile(cpath)
+        cpath = fullfile('fw_maneuvers', ['config_' config_to_run '.m']);
+    end
+    run(cpath);
 
     % Augment dfl_gains with the new q3/psi_g gains if missing
     if ~isfield(dfl_gains, 'c_q3'),     dfl_gains.c_q3     = 100; end
