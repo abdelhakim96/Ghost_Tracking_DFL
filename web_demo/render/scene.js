@@ -1,51 +1,73 @@
 // web_demo/render/scene.js
 import * as THREE from 'three';
 
+const SEA_SIZE = 20000;
+const MOUNT_COUNT = 60;
+const MOUNT_RADIUS_KM = 5;
+const PALETTE = [0x4a6a3a, 0x5a7a48, 0x6b6a4a, 0x7a6a3a]; // brown-greens
+
 export function buildScene() {
   const scene = new THREE.Scene();
-  // Sky gradient via a large inverted sphere
-  const skyGeom = new THREE.SphereGeometry(5000, 32, 16);
-  const skyMat  = new THREE.ShaderMaterial({
+  scene.add(makeSky());
+  scene.add(makeSea());
+  for (const m of makeMountains()) scene.add(m);
+  scene.add(makeSun());
+  scene.add(new THREE.AmbientLight(0x6080aa, 0.6));
+  return scene;
+}
+
+function makeSky() {
+  const geom = new THREE.SphereGeometry(8000, 32, 16);
+  const mat  = new THREE.ShaderMaterial({
     side: THREE.BackSide,
-    uniforms: { topColor: { value: new THREE.Color(0x3a78c8) }, bottomColor: { value: new THREE.Color(0xa8c8ee) } },
-    vertexShader: `varying vec3 vPos; void main(){ vPos = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
-    fragmentShader: `varying vec3 vPos; uniform vec3 topColor; uniform vec3 bottomColor;
-      void main(){ float t = clamp(0.5 + 0.5 * normalize(vPos).y, 0.0, 1.0); gl_FragColor = vec4(mix(bottomColor, topColor, t), 1.0); }`,
+    uniforms: {
+      topColor:    { value: new THREE.Color(0x3a78c8) },
+      bottomColor: { value: new THREE.Color(0xa8c8ee) },
+    },
+    vertexShader: `varying vec3 vPos;
+      void main(){ vPos = position;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+    fragmentShader: `varying vec3 vPos;
+      uniform vec3 topColor; uniform vec3 bottomColor;
+      void main(){ float t = clamp(0.5 + 0.5 * normalize(vPos).y, 0.0, 1.0);
+        gl_FragColor = vec4(mix(bottomColor, topColor, t), 1.0); }`,
   });
-  scene.add(new THREE.Mesh(skyGeom, skyMat));
+  return new THREE.Mesh(geom, mat);
+}
 
-  // Ground: large textured plane with grid
-  const groundMat = new THREE.MeshBasicMaterial({ color: 0x4a6a3a });
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(10000, 10000), groundMat);
-  ground.rotation.x = -Math.PI / 2;
-  scene.add(ground);
-  const grid = new THREE.GridHelper(10000, 200, 0x223322, 0x223322);
-  grid.position.y = 0.01;
-  scene.add(grid);
+function makeSea() {
+  const geom = new THREE.PlaneGeometry(SEA_SIZE, SEA_SIZE, 1, 1);
+  const mat  = new THREE.MeshPhongMaterial({ color: 0x1a4f7a, shininess: 60 });
+  const mesh = new THREE.Mesh(geom, mat);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.position.y = 0;
+  return mesh;
+}
 
-  // Reference cubes/spheres scattered across the area
+function makeMountains() {
   const rng = mulberry32(123);
-  const colors = [0xff6666, 0x66ccff, 0xffd866, 0xc098ff, 0x66ff99, 0xff99cc];
-  for (let i = 0; i < 30; i++) {
-    const x = (rng() - 0.5) * 5000;
-    const z = (rng() - 0.5) * 5000;
-    const y = 30 + rng() * 200;
-    const size = 30 + rng() * 50;
-    const isCube = rng() > 0.5;
-    const geo = isCube ? new THREE.BoxGeometry(size, size, size) : new THREE.SphereGeometry(size/2, 16, 12);
-    const mat = new THREE.MeshLambertMaterial({ color: colors[i % colors.length] });
-    const m = new THREE.Mesh(geo, mat);
-    m.position.set(x, y, z);
-    scene.add(m);
+  const out = [];
+  for (let i = 0; i < MOUNT_COUNT; i++) {
+    const r = 200 + rng() * (MOUNT_RADIUS_KM * 1000 - 200);
+    const theta = rng() * Math.PI * 2;
+    const x = r * Math.cos(theta);
+    const z = r * Math.sin(theta);
+    const height = 100 + rng() * 400;
+    const radius = 80 + rng() * 220;
+    const color  = PALETTE[Math.floor(rng() * PALETTE.length)];
+    const geom = new THREE.ConeGeometry(radius, height, 5);
+    const mat  = new THREE.MeshLambertMaterial({ color, flatShading: true });
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.position.set(x, height / 2, z);
+    out.push(mesh);
   }
+  return out;
+}
 
-  // Lights
+function makeSun() {
   const sun = new THREE.DirectionalLight(0xffffff, 1.0);
   sun.position.set(1, 1, 0.5);
-  scene.add(sun);
-  scene.add(new THREE.AmbientLight(0x6080aa, 0.6));
-
-  return scene;
+  return sun;
 }
 
 function mulberry32(seed) {
