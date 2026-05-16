@@ -78,7 +78,7 @@ export function defaultGains() {
 
 export function initialFwState() {
   return [0, 0, -100,
-          120, 0, 0,
+          30, 0, 0,        // was 120 -> too fast for Edge 540 to fly level open-loop
           1, 0, 0, 0,
           0, 0, 0];
 }
@@ -86,7 +86,7 @@ export function initialFwState() {
 export function initialDroneState() {
   return [0, 0, -100,
           1, 0, 0, 0,
-          120, 0, 0,
+          30, 0, 0,        // match FW velocity
           0, 0, 0,
           0, 0, 0,
           0.468 * 9.81, 0];

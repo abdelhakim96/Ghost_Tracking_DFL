@@ -3,10 +3,10 @@ import { describe, it, expect } from 'vitest';
 import { Keyboard } from '../input/keyboard.js';
 
 describe('keyboard ramps', () => {
-  it('zero deflections at init', () => {
+  it('trim elevator + zero aileron/rudder at init', () => {
     const k = new Keyboard();
     const c = k.controls();
-    expect(c.elevator).toBe(0);
+    expect(c.elevator).toBeCloseTo(-0.022, 6);   // elevator trim for ~level flight at 30 m/s
     expect(c.aileron).toBe(0);
   });
 
@@ -23,6 +23,6 @@ describe('keyboard ramps', () => {
     for (let i = 0; i < 10; i++) k.step(0.05);
     k._up('ArrowUp');
     for (let i = 0; i < 20; i++) k.step(0.05);
-    expect(Math.abs(k.controls().elevator)).toBeLessThan(0.01);
+    expect(Math.abs(k.controls().elevator - (-0.022))).toBeLessThan(0.01);
   });
 });

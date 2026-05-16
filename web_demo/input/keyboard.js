@@ -5,7 +5,10 @@ const LIMITS = { elevator: 0.4, aileron: 0.4, rudder: 0.2, thrust: 200 };
 export class Keyboard {
   constructor() {
     this.keys = new Set();
-    this.values = { elevator: 0, aileron: 0, rudder: 0, thrust: 100 };
+    // Elevator trim for ~level flight at 30 m/s with Edge 540 + thrust=100 N.
+    // Computed analytically from CL = weight and Cm = 0 at u = 30 m/s.
+    this.values = { elevator: -0.022, aileron: 0, rudder: 0, thrust: 100 };
+    this.trim = { elevator: -0.022 };
     this.attached = false;
   }
 
@@ -28,7 +31,7 @@ export class Keyboard {
       return cur + delta;
     };
 
-    let elev_target = 0, ail_target = 0, rud_target = 0;
+    let elev_target = this.trim.elevator, ail_target = 0, rud_target = 0;
     if (this.keys.has('ArrowUp'))    elev_target = -LIMITS.elevator;
     if (this.keys.has('ArrowDown'))  elev_target =  LIMITS.elevator;
     if (this.keys.has('ArrowLeft'))  ail_target = -LIMITS.aileron;
