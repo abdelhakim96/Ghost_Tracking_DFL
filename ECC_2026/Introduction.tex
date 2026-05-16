@@ -1,0 +1,178 @@
+\section{Introduction}
+
+% %%Hakim Comments
+% %%A) Motivation
+% %% Add motivation: Why emulation is needed? 
+% % 1. Fixed wings aircrafts are more expensive, not widely accessable 
+% % 2. One system can mimic a wide variety of vehicles ( VTOL's different aircraft models)
+% % 3. Can be used for training pilots
+% % 4. Viewpoint equivalence: for perception algorithms the image stream will be indistinguishable
+% % 5. Algorithm validation at lower TRL
+% % Why drone-gimbal system? drone-gimbal system is an accessible adn cheap platform for emulation.
+% % 4. Photorealistic simulators
+
+% %%B) Applications
+% %% Add examples of emulation for aircraft systems, give examples of flight and driving simulators, examples for industry and academdia, for example SIMONA at TU Delft. (add citations)
+
+
+% %% C) Advanced Control Methods for dynamcis mimecry  why DFL? (add citations).
+
+% % cite DFL methods, andriys thesis and paper on relative degree, mohits paper
+% % cite differet contorl methods, ex. MPC and limitations
+
+
+
+
+
+% % Motivation
+% %Mimicking one dynamic system with another can enable low-cost, safe, and repeatable testing and data collection, algorithm validation, operational flexibility across environments, and output equivalence for perception-driven tasks without the logistical or risk of the target platform.
+
+% The increasing complexity and cost of controlling specific dynamical systems, such as fixed-wing aircraft, pose significant challenges in training, simulation and real-world operations. Fixed-wing platforms are constrained by aerodynamic principles that limit their manoeuvrability. As they cannot hover or fly sideways, they must maintain a minimum airspeed, and their stability margins depend significantly on flight conditions ~\cite{morando2025trajectory}. These constraints make fixed-wing systems demanding in both operation and replication in controlled environments~\cite{li2024high}. By contrast, quadcopters are mechanically simpler, more affordable, and much more maneuverable. They can hover, fly laterally, and execute aggressive manoeuvres within confined spaces, making them attractive candidates for mimicking the behaviour of a more complex aerial system. If a quadcopter emulated the dynamics of a fixed-wing aircraft, it would open up practical applications in low-cost training, simulation and autonomy research. %For example, a quadcopter equipped with a gimbal-mounted camera could reproduce fixed-wing trajectories for pilot training or algorithm validation without requiring access to a real fixed-wing aircraft. 
+
+% % Challenges
+% Despite this potential, emulating one aerial system with another presents several significant challenges. The dynamics of fixed-wing aircraft and quadcopter vehicles differ fundamentally; one relies on continuous forward motion to generate lift, while the other produces lift through vertical thrust. Nonholonomic constraints, aerodynamic stall behaviour, differences in actuation and stability characteristics all make direct mapping between the two systems complex. A practical solution must therefore include a rigorous mechanism that can analyse the similarities between the two systems, derive mappings between their states and inputs, and ensure that the secondary system (multicopter) accurately mimics the primary system (fixed-wing aircraft) under realistic flight conditions ~\cite{yuan2025design, wu2019modeling}.
+
+% % Related works
+% In~\cite{wang2023similarity}, a framework is presented to measure similarity between two dynamic systems. It defines a homeomorphic map $K$ that transforms the trajectories of one system to match those of another, and quantifies the fidelity of the transformation via a cost function $J[K]$. The minimiser $K^*$ is used to minimise the cost, including the existence, uniqueness, and maximum principles, which provide a rigorous foundation for a similarity measure between two dynamical systems. Additionally, the paper introduces a ’similarity degree’ metric, which allows for classification of similarity in rigid, linear and general forms depending on the nature of $K^*$. It also demonstrates the practical viability of this approach through simulations of chaotic systems, such as Lorenz's and Chua’s circuits. 
+
+
+
+% % Contribution
+% The objective of this work is to design and validate a framework that enables a quadcopter with a two-axis gimbal to emulate the dynamics of a fixed-wing aircraft. Specifically, the work seeks to model and compare the key dynamical properties of both systems, develop a mapping strategy between their states and inputs, based on dynamic feedback linearization~(DFL) and design control laws that allow the quadcopter to mimic fixed-wing trajectories, and validate the framework through simulation to assess the accuracy and robustness ~\cite{pollet2022common} through increasingly complex maneuvers. The open-source implementation of the proposed framework is available \footnote{Repository: \url{https://github.com/abdelhakim96/Ghost_Tracking_DFL}}
+
+
+
+
+
+% % Organisation
+% This manuscript is organised as follows. The preliminary information about the fixed-wing and multicopter aircraft is summarised in Section~\ref{sec:preliminaries}. Section~\ref{sec:proof} provides a proof of full controllability of the camera's pose mounted on a multicopter's gimbal and a proof of fixed-wing aircraft camera pose mimicry with a multicopter's camera. Section~\ref{sec:method} proposes a method for the dynamic system imitation. Section~\ref{sec:results} provides validation results. Finally, the conclusions are provided in Section~\ref{sec:conclusions}.
+
+
+
+% % A) Taxonomy of Emulation
+% Mimicking the behaviour of one dynamical system with another, a process broadly
+% termed emulation, is a powerful tool in engineering and research. These
+% approaches can be classified into a taxonomy based on their connection to the
+% real world. The first category is purely virtual Simulation, where a
+% computer model replicates a system's dynamics and its sensory environment. The
+% second is hardware-in-the-Loop simulation, which combines a physical motion
+% platform with a virtual environment. The third, which is the focus of this work,
+% is system-to-system emulation, where one real-world physical system is
+% controlled to dynamically replicate another.
+
+
+% % B) Type 1: Purely Virtual (AirSim)
+% Purely virtual simulators, which leverage game engines like
+% Unreal Engine \cite{shah2017airsim, amer2023unav}, are designed to generate vast amounts of synthetic sensor data to
+% train perception algorithms~\cite{shah2017airsim}. While valuable for rapidly
+% testing code and training models, these systems suffer from the well-known
+% "sim-to-real gap"~\cite{gao2020realitygap}. Models trained purely on simulated
+% data often fail when deployed on a real robot because the simulation cannot
+% perfectly capture the noise, lighting, and unpredictable dynamics of the real
+% world.
+
+% % C) Type 2: Physical-in-the-Loop (SIMONA)
+% Hardware-in-the-Loop simulators seek to add realism by incorporating a human
+% operator and physical motion cues. Advanced research platforms, like the SIMONA
+% simulator at TU Delft, use a stewart platform to
+% provide realistic motion feedback for pilot training~\cite{vanpaassen2006simona,
+% stroosma2002simona}. However, these systems are ultimately disconnected from the
+% real world. The visual feedback is still a computer-generated image, creating a
+% validation gap for both the pilot and any onboard sensor-driven algorithms.
+
+% % D) Type 3: Physical-to-Physical (Our Paradigm)
+% This work introduces a framework for the third paradigm: physical-to-physical
+% system emulation. We propose using one highly-maneuverable, low-cost physical system (a
+% quadcopter with a gimbal) to emulate the dynamics and camera viewpoint of
+% another, more constrained physical system (a fixed-wing aircraft).
+
+% This approach bridges the gap left by the other methods. For algorithm validation, it provides
+% a real-time, real-world video stream, eliminating the "sim-to-real gap" by
+% incorporating actual environmental physics. For pilot training, it provides a
+% visual feed that is "actually real, not kind of real," offering a transformative
+% tool for training in real-world conditions without risking a high-value
+% fixed-wing asset.
+
+% % E) Problem Statement & Advantages
+% The specific problem we address is emulating a fixed-wing aircraft, a platform
+% that is costly and challenging to operate due to its aerodynamic constraints
+% (e.g., minimum airspeed, limited maneuverability). A quadcopter is an ideal
+% emulation platform due to its affordability and maneuverability (e.g., hovering,
+% lateral flight). This capability is crucial for validating algorithms at lower
+% Technology Readiness Levels (TRLs)~\cite{smith2022emulation} and enables
+% flexible, repeatable data collection for perception tasks.
+
+% % F) Challenges (Transition to Control)
+% Achieving this emulation, however, presents a significant control challenge. The
+% dynamics of fixed-wing aircraft and quadcopters differ fundamentally. Mapping the
+% nonholonomic constraints, aerodynamic stall behaviours, and disparate actuation
+% models from the fixed-wing (primary) system to the quadcopter (secondary) system
+% is highly non-trivial. A practical solution requires a rigorous control framework
+% that can derive precise mappings between their states and inputs, ensuring the
+% quadcopter accurately reproduces the fixed-wing's behaviour under realistic flight
+% conditions~\cite{yuan2025design, wu2019modeling}.
+
+% % G) Advanced Control Methods (Related Work - Control)
+% To achieve this dynamic mimicry, advanced control methods are essential.
+% Model predictive control (MPC) is one popular approach, valued for its
+% ability to handle system constraints and optimize trajectories~\cite{amer2023visual,amer2025}.
+% However, MPC's high computational cost can be a significant limitation for
+% real-time applications on embedded hardware. An alternative and highly effective
+% strategy is dynamic feedback linearization (DFL). DFL-based control uses, when
+% necessary, a dynamic extension of the state space to transform the complex
+% nonlinear system dynamics into a simpler, linear form. This allows for systematic
+% and computationally efficient trajectory tracking, and it is a powerful tool for
+% managing systems with complex relative degrees, as is the case in our
+% emulation problem~\cite{pshuniak2018relative}. This work builds upon these
+% principles to formulate the mapping between the two dissimilar aerial systems.
+
+% % H) Related Work (Similarity Theory)
+% In parallel to control design, a formal framework for quantifying similarity is
+% also needed. In~\cite{wang2023similarity}, a framework is presented to measure
+% similarity between two dynamic systems. It defines a homeomorphic map $K$ that
+% transforms the trajectories of one system to match those of another, and
+% quantifies the fidelity of the transformation via a cost function $J[K]$. The
+% minimiser $K^*$ is used to minimise the cost, including the existence,
+% uniqueness, and maximum principles, which provide a rigorous foundation for a
+% similarity measure. The paper's introduction of a 'similarity degree' metric
+% provides a useful language for classifying the nature of the transformation.
+
+% % I) Contribution
+% The objective of this work is to design and validate a framework that enables a
+% quadcopter with a two-axis gimbal to emulate the dynamics and sensor viewpoint of
+% a fixed-wing aircraft. We bridge the gap between theoretical similarity and
+% practical implementation by developing a mapping strategy based on DFL. Specifically, this work models and compares the key
+% dynamical properties of both systems, designs DFL-based control laws that allow
+% the quadcopter to mimic fixed-wing trajectories, and validates the framework
+% through simulations of increasingly complex maneuvers~\cite{pollet2022common}.
+% The open-source implementation of the proposed framework is available
+% \footnote{Repository: \url{https://github.com/abdelhakim96/Ghost_Tracking_DFL}}.
+
+% % J) Organisation
+% This manuscript is organised as follows. The preliminary information about the
+% fixed-wing and multicopter aircraft is summarised in
+% Section~\ref{sec:preliminaries}. Section~\ref{sec:proof} provides a proof of full
+% controllability of the camera's pose mounted on a multicopter's gimbal and a
+% proof of fixed-wing aircraft camera pose mimicry with a multicopter's camera.
+% Section~\ref{sec:method} proposes a method for the dynamic system imitation.
+% Section~\ref{sec:results} provides validation results. Finally, the conclusions
+% are provided in Section~\ref{sec:conclusions}.
+
+
+
+
+
+Mimicking the behaviour of one dynamic system with another, broadly termed emulation, is a powerful tool in engineering and research. These approaches can be classified into a taxonomy based on their connection to the real world. The first category is virtual simulation, in which a computer model replicates a system's dynamics and sensory environment~\cite{shah2017airsim, amer2023unav}. While valuable for training algorithms, these systems suffer from the well-known ``sim-to-real'' gap, as models trained on simulated data often fail when deployed in the real world~\cite{gao2020realitygap, aljalbout2025reality}. 
+The second category is pilot-in-the-loop~(PIL) simulation, which combines physical motion platforms with virtual environments, primarily for human operator training. Such systems~\cite{stroosma2003using, edvani1997simona}, provide realistic motion cues to pilots while rendering either computer-generated visuals or pre-recorded imagery. However, PIL systems remain fundamentally limited for algorithm validation: they cannot provide real-time sensor data that responds dynamically to the system's current state and actions.%, while pre-recorded data lacks the closed-loop interaction necessary for testing perception and control algorithms, while synthetic data suffers from the sim-to-real gap.
+
+This work proposes a third paradigm: physical-to-physical system emulation. In this approach, one highly manoeuvrable, low-cost physical system, i.e a multicopter equipped with a camera on a gimbal,  is controlled to dynamically replicate both the motion and camera viewpoint of another, more constrained system, a fixed-wing aircraft. %This emulation can provide real sensory data while maintaining operational flexibility. 
+Fixed-wing aircraft are operationally demanding due to aerodynamic constraints such as minimum airspeed requirements and stall risks. In contrast, a multicopter offers affordability and superior maneuverability (including hover and vertical takeoff), making it an ideal emulation platform. This approach is particularly valuable for validating algorithms at lower technology readiness levels~\cite{smith2022emulation} and enables flexible, repeatable data collection for perception tasks by providing real-time sensory data in real-world environments.
+
+However, achieving this emulation, sometimes is not straightforward. The dynamics of fixed-wing aircraft and multicopters differ fundamentally: fixed-wing systems exhibit nonholonomic constraints, aerodynamic stall behaviors, and actuation models that have no direct analogue in multicopter dynamics~\cite{yuan2025design, wu2019modeling}. This raises two critical questions: Is mimicry theoretically possible given these fundamental differences? And if so, what control techniques can realize it in practice?
+Addressing the first question requires formal analysis of feasibility. Recent work has introduced similarity frameworks that define homeomorphic maps to transform system trajectories, quantifying emulation fidelity via cost functions~\cite{wang2023similarity}. This concept of similarity degree provides a formal method for determining whether mimicry is theoretically achievable and how well it can be approximated. Once mimicry feasibility is established, the second question remains: mapping these disparate behaviors from the fixed-wing (primary) system to the multicopter (secondary) system requires sophisticated control techniques.
+%In parallel to control design, a formal framework for quantifying similarity is also needed. 
+While model predictive control (MPC) is a popular approach for handling constraints~\cite{amer2023visual, amer2025}, its high computational cost can be prohibitive for high degrees of freedom, real-time applications on embedded hardware. An alternative and highly effective strategy is dynamic feedback linearization~(DFL). DFL transforms complex nonlinear system dynamics into a simpler, linear form, often by dynamically extending the state space. This allows for systematic and computationally efficient trajectory tracking, making it a powerful tool for managing systems with complex relative degrees, as is the case in the emulation problem~\cite{pshuniak2018relative}.
+
+The objective of this work is to bridge the gap between theoretical similarity and practical implementation by designing and validating a DFL-based framework that enables a multicopter with a two-axis gimbal to emulate the dynamics and sensor viewpoint of a fixed-wing aircraft. Specifically, the contributions of this work are: (1) a proof of the multicopter-gimbal's camera-pose controllability and mimicry capability; (2) the design of DFL-based control laws to mimic fixed-wing camera pose trajectories; and (3) validation of the complete framework through simulations of increasingly complex manoeuvres.
+
+This manuscript is organized as follows. Section~\ref{sec:preliminaries} summarizes the preliminary information about the aircraft models. Section~\ref{sec:proof} provides the controllability and mimicry proofs. Section~\ref{sec:method} details the proposed DFL-based imitation method. Section~\ref{sec:results} provides validation results, and Section~\ref{sec:conclusions} concludes the work.

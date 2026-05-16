@@ -1,5 +1,7 @@
 %% Simulation parameters
-t_end = 3.0;         % End time of the simulation (s)
+% At baseline thrust=40 and elevator=-0.4, body-pitch rate settles around
+% ~1.3 rad/s, so a full 360 deg loop takes ~5s. Use 5.5s for headroom.
+t_end = 5.5;         % End time of the simulation (s)
 delta_t = 0.01;     % Time step for the simulation (s)
 t_sim = 0:delta_t:t_end; % Time vector for the simulation
 
