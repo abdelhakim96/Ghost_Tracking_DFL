@@ -248,5 +248,16 @@ function xdot = fw_step(t, s, fw_controls, fw_params)
         ai = fw_controls.aileron;
         ru = fw_controls.rudder;
     end
+    % Optional attitude-hold autopilot: engages when scripted maneuver is done.
+    if isfield(fw_controls, 'stabilize_after') && t >= fw_controls.stabilize_after
+        target = struct();
+        if isfield(fw_controls, 'stabilize_target'), target = fw_controls.stabilize_target; end
+        gains = struct();
+        if isfield(fw_controls, 'stabilize_gains'),  gains  = fw_controls.stabilize_gains;  end
+        alt_ref = [];
+        if isfield(fw_controls, 'stabilize_alt_ref'), alt_ref = fw_controls.stabilize_alt_ref; end
+        [del, dai, dru] = fw_attitude_hold(s, target, gains, alt_ref);
+        el = el + del; ai = ai + dai; ru = ru + dru;
+    end
     xdot = fw_6dof_quat(t, s, th, el, ai, ru, fw_params);
 end

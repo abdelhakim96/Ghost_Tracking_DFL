@@ -15,6 +15,20 @@ function state_dot = unified_dynamics3(t, state, fw_params, fw_controls, dfl_gai
         rudder   = fw_controls.rudder;
     end
 
+    % Optional attitude-hold autopilot — same wiring as the FW-only test harness
+    if isfield(fw_controls, 'stabilize_after') && t >= fw_controls.stabilize_after
+        target = struct();
+        if isfield(fw_controls, 'stabilize_target'), target = fw_controls.stabilize_target; end
+        gains  = struct();
+        if isfield(fw_controls, 'stabilize_gains'),  gains  = fw_controls.stabilize_gains;  end
+        alt_ref = [];
+        if isfield(fw_controls, 'stabilize_alt_ref'), alt_ref = fw_controls.stabilize_alt_ref; end
+        [del, dai, dru] = fw_attitude_hold(fw_state, target, gains, alt_ref);
+        elevator = elevator + del;
+        aileron  = aileron  + dai;
+        rudder   = rudder   + dru;
+    end
+
     [fw_state_dot, ref_acc_ned, ref_jerk_ned, ref_snap_ned] = fw_6dof_quat(t, fw_state, thrust, elevator, aileron, rudder, fw_params);
 
     ref_pos_ned = fw_state(1:3);
