@@ -6,7 +6,10 @@
 %   The phases are sequenced — A finishes before B starts.
 
 %% Sim parameters
-t_end   = 3.0;
+% Wider loop + recovery + level-out time so the heading-reversed leg is
+% visible. Lower elevator amplitude makes the loop big and recognizable
+% instead of a near-vertical sprint.
+t_end   = 5.5;
 delta_t = 0.005;
 t_sim   = 0:delta_t:t_end;
 
@@ -40,14 +43,14 @@ fw_controls.thrust = 100 * ones(size(t_sim));
 % Body-pitch rate ~ Cm_de * elevator * qbar*S*c / Iy. With elevator = -0.4,
 % qbar = 8820, expect q ≈ -0.4 * -1.8 * 8820 * 9.1 * 1.22 / 750 ≈ 95 rad/s^2 (!)
 % — way too aggressive. Reduce to -0.2 to get pitch rate ~ 1.5 rad/s
-% Elevator equilibrium pitch rate at -0.18 rad is ~4 rad/s, so 180° pitch
-% completes in ~0.78s. Anything longer and the FW keeps looping (asin in
-% the Euler extraction masks this — the simulation actually rotates more).
+% Wider loop: lower elevator amp -> lower pitch rate -> larger loop radius
+% (forward velocity * loop_duration / 2*pi). Elevator equilibrium pitch
+% rate at -0.06 rad is ~1.5 rad/s, so half-loop ~ 2.1s.
 ele = zeros(size(t_sim));
-loop_t0 = 0.20;
-loop_t1 = 1.10;
-ele_amp = -0.18;
-ele_ramp = 0.10;
+loop_t0 = 0.30;
+loop_t1 = 2.65;
+ele_amp = -0.06;
+ele_ramp = 0.15;
 for k = 1:length(t_sim)
     tk = t_sim(k);
     if tk >= loop_t0 - ele_ramp && tk < loop_t0
@@ -61,10 +64,10 @@ end
 fw_controls.elevator = ele;
 
 % Phase B: half roll (180°) starting after the half-loop completes
-% Equilibrium roll rate at 0.30 rad is ~280°/s, so 180° roll takes ~0.65s.
+% Half-roll after the half-loop completes.
 ail = zeros(size(t_sim));
-roll_t0 = 1.45;
-roll_t1 = 2.30;
+roll_t0 = 2.90;
+roll_t1 = 3.80;
 ail_amp = 0.30;
 ail_ramp = 0.10;
 for k = 1:length(t_sim)

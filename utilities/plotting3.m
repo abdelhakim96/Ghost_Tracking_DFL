@@ -43,10 +43,14 @@ function plotting3(t, state, config_to_run, save_prefix)
     p1.Color(4) = 0.5;
     p2 = plot3(x_fw(:,1), x_fw(:,2), -x_fw(:,3), 'r--', 'LineWidth', 1.6);
     p2.Color(4) = 0.6;
-    grid on; axis equal;
+    grid on;
+    axis equal;
+    daspect([1 1 1]);                   % enforce equal aspect on all three axes
     xlabel('North (m)'); ylabel('East (m)'); zlabel('Altitude (m)');
     title(sprintf('Camera POV tracking, 3-axis Phase 1+5  (%s)', config_to_run));
-    view(45, 25);
+    % Pick a viewing angle whose elevation works for both vertical and
+    % horizontal maneuvers
+    view(40, 20);
 
     stl_path = fullfile(repo, 'CAD', 'aero.stl');
     have_stl = exist(stl_path, 'file') == 2;

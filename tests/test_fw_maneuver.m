@@ -150,9 +150,10 @@ function [pass, summary, traj] = test_fw_maneuver(config_name, checks, save_pref
 
     fig3 = figure('Name', ['FW 3D ' config_name], 'NumberTitle','off', 'Position', [120 120 900 700]);
     plot3(pos(:,1), pos(:,2), -pos(:,3), 'r-', 'LineWidth', 2); hold on;
-    grid on; axis equal; xlabel('x (m)'); ylabel('y (m)'); zlabel('alt (m)');
+    grid on; axis equal; daspect([1 1 1]);
+    xlabel('North (m)'); ylabel('East (m)'); zlabel('Altitude (m)');
     title(sprintf('%s  -  FW 3D trajectory', checks.label));
-    view(30, 20);
+    view(40, 20);
     saveas(fig3, fullfile(out_dir, [save_prefix '_3d.png']));
 
     fig4 = figure('Name', ['FW inputs ' config_name], 'NumberTitle','off', 'Position', [140 140 900 600]);
