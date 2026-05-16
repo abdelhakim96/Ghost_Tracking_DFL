@@ -1,8 +1,24 @@
 import { test, expect } from '@playwright/test';
 
+// Dismiss the welcome modal so subsequent keystrokes drive the sim.
+async function dismissWelcome(page) {
+  // The first keydown closes the welcome modal; send a harmless one.
+  await page.keyboard.press('ShiftLeft');
+}
+
+test('welcome modal shown on first load and dismissible', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.locator('#welcome')).toBeVisible();
+  await expect(page.locator('#welcome h1')).toContainText(/Ghost-Tracking/i);
+  // Click the start button
+  await page.locator('#btn-start').click();
+  await expect(page.locator('#welcome')).toBeHidden();
+});
+
 test('camera tracks FW after free-flight', async ({ page }) => {
   await page.goto('/');
   await page.waitForFunction(() => window.__demoState !== undefined);
+  await dismissWelcome(page);
 
   await page.keyboard.down('ArrowUp');
   await page.waitForTimeout(800);
@@ -43,6 +59,7 @@ test('overlays present', async ({ page }) => {
 test('reset button resets the simulation', async ({ page }) => {
   await page.goto('/');
   await page.waitForFunction(() => window.__demoState !== undefined);
+  await dismissWelcome(page);
 
   // Pitch up to displace the FW off its initial position
   await page.keyboard.down('ArrowUp');
@@ -74,4 +91,10 @@ test('input bars present and live-updating', async ({ page }) => {
   const u = await page.evaluate(() => window.__demoState.u);
   expect(Array.isArray(u)).toBe(true);
   expect(u.length).toBe(7);
+});
+
+test('trajectory minimap canvas present', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__demoState !== undefined);
+  await expect(page.locator('#minimap')).toBeVisible();
 });

@@ -7,6 +7,7 @@ import { unifiedRK4Step, snapshotU, defaultGains, initialFwState, initialDroneSt
 import { mountCockpitOverlay } from './render/overlay_cockpit.js';
 import { mountDroneOverlay }   from './render/overlay_drone.js';
 import { buildInsetScene, updateInset } from './render/inset_scene.js';
+import { initMinimap, updateMinimap, resetMinimap } from './render/minimap.js';
 
 const canvas      = document.getElementById('canvas');
 const insetCanvas = document.getElementById('inset');
@@ -27,19 +28,36 @@ let paused     = false;
 function resetSim() {
   fwState = initialFwState();
   droneState = initialDroneState();
+  resetMinimap();
 }
 function togglePause() {
   paused = !paused;
   const btn = document.getElementById('btn-pause');
   if (btn) { btn.textContent = paused ? 'RESUME' : 'PAUSE'; btn.classList.toggle('active', paused); }
 }
+function showWelcome() {
+  const m = document.getElementById('welcome');
+  if (m) m.classList.remove('hidden');
+}
+function hideWelcome() {
+  const m = document.getElementById('welcome');
+  if (m) m.classList.add('hidden');
+}
 
 window.addEventListener('keydown', (e) => {
+  // Dismiss welcome modal on any key
+  const welcome = document.getElementById('welcome');
+  if (welcome && !welcome.classList.contains('hidden')) {
+    hideWelcome();
+    return;
+  }
   if (e.code === 'KeyR') resetSim();
   if (e.code === 'KeyP') togglePause();
 });
 document.getElementById('btn-reset')?.addEventListener('click', resetSim);
 document.getElementById('btn-pause')?.addEventListener('click', togglePause);
+document.getElementById('btn-help')?.addEventListener('click', showWelcome);
+document.getElementById('btn-start')?.addEventListener('click', hideWelcome);
 
 const cockpitApi = mountCockpitOverlay(document.getElementById('overlay-cockpit'), () => fwState);
 const droneApi   = mountDroneOverlay  (document.getElementById('overlay-drone'),   () => droneState);
@@ -47,6 +65,10 @@ const droneApi   = mountDroneOverlay  (document.getElementById('overlay-drone'),
 const insetAspect = insetCanvas.clientWidth / insetCanvas.clientHeight;
 const insetGl = initInsetRenderer(insetCanvas);
 const ins = insetGl ? buildInsetScene(insetAspect) : null;
+
+// Trajectory minimap (Canvas2D, bottom-left)
+const minimapCanvas = document.getElementById('minimap');
+if (minimapCanvas) initMinimap(minimapCanvas);
 
 const PHYS_DT = 0.005;
 let acc = 0;
@@ -85,6 +107,9 @@ function frame(now) {
     updateInset(ins, fwState, droneState, now);
     renderInset(ins.scene, ins.camera);
   }
+
+  // Trajectory minimap
+  updateMinimap(fwPos, dronePos);
 
   // Update input-bar panels (pilot inputs and DFL u)
   const controlsNow = kbd.controls();

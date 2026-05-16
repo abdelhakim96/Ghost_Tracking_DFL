@@ -9,6 +9,7 @@
 <body>
   <canvas id="canvas"></canvas>
   <canvas id="inset"></canvas>
+  <canvas id="minimap" width="320" height="240"></canvas>
   <div id="overlay-cockpit"></div>
   <div id="overlay-drone"></div>
   <div id="overlay">
@@ -17,8 +18,40 @@
       &uarr;/&darr; pitch &nbsp; &larr;/&rarr; roll &nbsp; A/D rudder &nbsp; W/S thrust &nbsp; P pause
     </div>
     <div id="controls-bar">
+      <button id="btn-help"   type="button" title="Show instructions">?</button>
       <button id="btn-reset"  type="button">RESET SIM</button>
       <button id="btn-pause"  type="button">PAUSE</button>
+    </div>
+  </div>
+
+  <!-- Welcome / instructions modal, shown on first load -->
+  <div id="welcome" class="modal">
+    <div class="modal-card">
+      <h1>Ghost-Tracking DFL Demo</h1>
+      <p class="subtitle">A fixed-wing aircraft you pilot; a multicopter+gimbal tracks it in real time.</p>
+
+      <h2>What you're seeing</h2>
+      <ul>
+        <li><strong>Left half</strong> — the camera POV from inside the fixed-wing cockpit.</li>
+        <li><strong>Right half</strong> — the camera POV from the drone's gimbal-mounted camera.</li>
+        <li>When the controller works, both views are pixel-similar.</li>
+        <li><strong>Bottom-right inset</strong> — external view of FW (transparent) + drone (solid) so you can see them coincide.</li>
+        <li><strong>Bottom-left minimap</strong> — top-down trajectory traces, red = FW, blue = drone.</li>
+      </ul>
+
+      <h2>How to fly</h2>
+      <table class="key-table">
+        <tr><td><kbd>↑</kbd> <kbd>↓</kbd></td><td>Pitch up / down (elevator)</td></tr>
+        <tr><td><kbd>←</kbd> <kbd>→</kbd></td><td>Roll left / right (aileron)</td></tr>
+        <tr><td><kbd>A</kbd> <kbd>D</kbd></td><td>Rudder left / right</td></tr>
+        <tr><td><kbd>W</kbd> <kbd>S</kbd></td><td>Thrust up / down</td></tr>
+        <tr><td><kbd>R</kbd></td><td>Reset simulation</td></tr>
+        <tr><td><kbd>P</kbd></td><td>Pause / resume</td></tr>
+      </table>
+
+      <p class="tip">Tip: start with a gentle pitch-up to climb, then add a touch of aileron to roll. Watch the joystick gauge in the cockpit dashboard to see your stick position. The right-side bars show the DFL controller commanding the drone to match.</p>
+
+      <button id="btn-start" class="primary" type="button">START FLYING</button>
     </div>
   </div>
   <script type="importmap">
