@@ -1,7 +1,53 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { width: 100%; height: 100%; overflow: hidden; background: #111; color: #ddd; font-family: system-ui, sans-serif; }
 #canvas { display: block; width: 100vw; height: 100vh; }
+
 #overlay { position: fixed; inset: 0; pointer-events: none; }
-#labels { display: flex; justify-content: space-around; padding: 8px; font-size: 14px; text-shadow: 0 0 4px black; }
 #cheatsheet { position: fixed; bottom: 8px; left: 50%; transform: translateX(-50%);
-  padding: 6px 12px; background: rgba(0,0,0,0.5); border-radius: 6px; font-size: 13px; }
+  padding: 6px 12px; background: rgba(0,0,0,0.5); border-radius: 6px; font-size: 13px; pointer-events: none; }
+
+#overlay-cockpit, #overlay-drone {
+  position: fixed; top: 0; height: 100vh; width: 50vw; pointer-events: none;
+}
+#overlay-cockpit { left: 0; }
+#overlay-drone   { left: 50vw; }
+
+.hud-band-top {
+  position: absolute; left: 0; right: 0; top: 0; height: 60px;
+  background: linear-gradient(to bottom, rgba(20,22,30,0.92) 0%, rgba(20,22,30,0.85) 70%, rgba(20,22,30,0) 100%);
+  color: #cfe; font: 12px/16px monospace; padding: 8px 12px;
+  display: flex; justify-content: space-between; align-items: flex-start;
+}
+.hud-band-bottom {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 28px;
+  background: rgba(20,22,30,0.85);
+  color: #cfe; font: 11px/14px monospace; padding: 6px 12px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.hud-rail-left, .hud-rail-right {
+  position: absolute; top: 0; bottom: 0; width: 12px;
+}
+.hud-rail-left  { left: 0;  background: linear-gradient(to right, rgba(0,0,0,0.6), transparent); }
+.hud-rail-right { right: 0; background: linear-gradient(to left,  rgba(0,0,0,0.6), transparent); }
+
+.hud-readout span { display: inline-block; min-width: 5em; margin-right: 8px; }
+.hud-label   { letter-spacing: 0.1em; opacity: 0.85; }
+.hud-icon    { width: 20px; height: 20px; opacity: 0.85; }
+
+/* Drone-overlay-specific rotor visualization */
+.rotor-row { display: flex; gap: 6px; }
+.rotor-disc {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(140,150,170,0.85) 0%, rgba(140,150,170,0.0) 70%);
+  border: 1px dashed rgba(180,190,210,0.6);
+  animation: rotor-spin 0.08s linear infinite;
+}
+@keyframes rotor-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+/* Inset canvas */
+#inset {
+  position: fixed; right: 12px; bottom: 50px; width: 280px; height: 200px;
+  border: 2px solid rgba(255,255,255,0.4); border-radius: 8px;
+  background: rgba(0,0,0,0.6);
+  pointer-events: none;
+}
