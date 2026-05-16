@@ -1,16 +1,17 @@
 %%%%%%%%%%%%%%%%%
-\begin{figure*}[b]
-    \centering
-    \includegraphics[width=\textwidth]{figures/results/position_and_orientation_straight_cropped.pdf}
-    \caption{Position and orientation tracking during level-flight.}
-    \label{fig:level_tracking}
-\end{figure*}
+% \begin{figure*}[b]
+%     \centering
+%     \includegraphics[width=\textwidth]{figures/results/position_and_orientation_straight_cropped.pdf}
+%     \caption{Position and orientation tracking during level-flight.}
+%     \label{fig:level_tracking}
+% \end{figure*}
 %%%%%%%%%%%%%%%%%
 
 \section{Validation Results}
 \label{sec:results}
 
-To validate the proposed DFL controller for camera-pose mimicry, we simulate a multicopter equipped with a 2-axis gimbal tracking the flight of a Red Bull Edge 540~\cite{redbull} aerobatic aircraft. The Edge 540 was selected for its aggressive maneuvering capabilities, providing a challenging test case for the controller. The multicopter chosen is the Freefly Alta-X platform \cite{FreeflyAltaX_spec}, featuring a high thrust-to-weight ratio necessary for tracking high-speed trajectories while maintaining control authority as required by Assumption~\ref{ass:authority}. The parameters are provided in Table~\ref{tab:vehicle_params}.
+% To validate the proposed DFL controller for camera-pose mimicry, we simulate a multicopter equipped with a 2-axis gimbal tracking the flight of a Red Bull Edge 540~\cite{redbull} aerobatic aircraft. The Edge 540 was selected for its aggressive maneuvering capabilities, providing a challenging test case for the controller. The multicopter chosen is the Freefly Alta-X platform \cite{FreeflyAltaX_spec}, featuring a high thrust-to-weight ratio necessary for tracking high-speed trajectories while maintaining control authority as required by Assumption~\ref{ass:authority}. The parameters are provided in Table~\ref{tab:vehicle_params}.
+To validate the proposed DFL controller for camera-pose mimicry, we simulate a multicopter equipped with a 3-axis gimbal tracking the flight of a Red Bull Edge 540~\cite{redbull} aerobatic aircraft. The Edge 540 was selected for its aggressive maneuvering capabilities, providing a challenging test case for the controller. The multicopter chosen is the Freefly Alta-X platform~\cite{FreeflyAltaX_spec}, featuring a high thrust-to-weight ratio necessary for tracking high-speed trajectories while maintaining control authority as required by Assumption~\ref{ass:authority}. The parameters are provided in Table~\ref{tab:vehicle_params}.
 
 \begin{table}[!b]
 \centering
@@ -26,9 +27,9 @@ Wingspan & 7.40 m \\
 Wing Area & 9.10 m² \\
 Mean Chord & 1.23 m \\
 Max Speed & 118 m/s \\
-Lift & 0.20, 4.0, 0.0, -0.36 \\ 
-Drag & 0.03, 0.04, 0.0, 0.0, 0.0 \\ 
-Pitch Moment & -0.01, -0.5, -3.6, -0.5 \\ 
+Lift & 0.20, 4.0, 0.0, -0.36 \\
+Drag & 0.03, 0.04, 0.0, 0.0, 0.0 \\
+Pitch Moment & -0.01, -0.5, -3.6, -0.5 \\
 Side Force & -0.98, 0.0, 0.0, 0.0, -0.17 \\
 Rolling & -0.12, -0.26, 0.14, 0.08, 0.105 \\
 Yaw Moment & 0.25, 0.022, -0.35, 0.06, -0.032 \\
@@ -42,53 +43,106 @@ Moments of inertia & (0.48, 0.48, 0.41) kg·m² \\
 %}
 \end{table}
 
-Two distinct flight scenarios are examined: (1) a level flight trajectory, and (2) an aerobatic loop manoeuvre testing the controller's ability to handle aggressive dynamics. For both scenarios, we evaluate the system's ability to achieve the mimicry condition $\mathbf{y}_\text{MC}(t) \equiv \mathbf{y}_\text{AC}(t)$ established in Section~\ref{sec:proof}.
+% Two distinct flight scenarios are examined: (1) a level flight trajectory, and (2) an aerobatic loop manoeuvre testing the controller's ability to handle aggressive dynamics. For both scenarios, we evaluate the system's ability to achieve the mimicry condition $\mathbf{y}_\text{MC}(t) \equiv \mathbf{y}_\text{AC}(t)$ established in Section~\ref{sec:proof}.
+The controller is exercised on six representative fixed-wing scenarios that span the envelope from quasi-steady cruise to full $360^\circ$ aerobatic rotations: a level flight reference, a vertical loop, a barrel roll, an Immelmann turn, a Split-S, and a Cuban-eight. For every scenario we evaluate the system's ability to achieve the mimicry condition $\mathbf{y}_\text{MC}(t) \equiv \mathbf{y}_\text{AC}(t)$ established in Section~\ref{sec:proof}. Tracking quality is reported in two channels: the translational mean absolute error (MAE) $\frac{1}{T}\!\int_0^T \!\| \mathbf{p}_\text{MC}(t) - \mathbf{p}_\text{AC}(t) \|\,dt$ and the camera-orientation geodesic error $2\arccos\big(\lvert\, \mathrm{scalar}(\bar{\mathbf{q}}_\text{MC} \otimes \mathbf{q}_\text{AC})\,\rvert\big)$. A summary across all manoeuvres is given in Table~\ref{tab:mae_summary}.
+
+\begin{table}[!t]
+\centering
+\caption{Tracking error of the proposed controller across the evaluated manoeuvres. Position MAE is integrated over the full trajectory; orientation MAE is the geodesic error between the gimbal camera and the fixed-wing reference.}
+\label{tab:mae_summary}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Manoeuvre} & $T_\text{sim}$ (s) & MAE pos (m) & MAE orient ($^\circ$) \\
+\hline
+Level flight       & 5.50 & 0.26 & $2 \times 10^{-4}$ \\
+Loop ($360^\circ$) & 5.50 & 0.26 & $2 \times 10^{-4}$ \\
+Barrel roll        & 2.50 & 0.31 & $2 \times 10^{-4}$ \\
+Immelmann turn     & 7.50 & 0.73 & $2 \times 10^{-4}$ \\
+Split-S            & 3.00 & 1.37 & $1.4 \times 10^{-3}$ \\
+Cuban-eight        & 5.00 & 1.21 & $2 \times 10^{-4}$ \\
+\hline
+\end{tabular}
+\end{table}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Trajectory 1: Level Flight}
 
 %%%%%%%%%%%%%%%%%
-\begin{figure}[!b]
-    \centering
-    \includegraphics[width=0.33\textwidth]{figures/results/3d_trajectory_straight_cropped.pdf_cropped.pdf}
-    \caption{3D trajectories of the fixed-wing aircraft (red), multicopter position (blue), and gimbal camera position (3-D axis) for level flight.}
-    \label{fig:3d_trajectory_level}
-\end{figure}
+% \begin{figure}[!b]
+%     \centering
+%     \includegraphics[width=0.33\textwidth]{figures/results/3d_trajectory_straight_cropped.pdf_cropped.pdf}
+%     \caption{3D trajectories of the fixed-wing aircraft (red), multicopter position (blue), and gimbal camera position (3-D axis) for level flight.}
+%     \label{fig:3d_trajectory_level}
+% \end{figure}
 %%%%%%%%%%%%%%%%%
 
-\begin{figure*}[b]
-    \centering
-    \includegraphics[width=\textwidth]{figures/results/position_and_orientation_loop_cropped.pdf}
-    \caption{Position and orientation tracking during the loop manoeuvre. Despite the aggressive dynamics, the gimbal camera position and orientation (green) accurately follow the fixed-wing reference (red), while the multicopter (blue) exhibits a large pitch necessary to maintain the required thrust vectoring. }
-    \label{fig:loop_tracking}
-\end{figure*}
+% \begin{figure*}[b]
+%     \centering
+%     \includegraphics[width=\textwidth]{figures/results/position_and_orientation_loop_cropped.pdf}
+%     \caption{Position and orientation tracking during the loop manoeuvre. Despite the aggressive dynamics, the gimbal camera position and orientation (green) accurately follow the fixed-wing reference (red), while the multicopter (blue) exhibits a large pitch necessary to maintain the required thrust vectoring. }
+%     \label{fig:loop_tracking}
+% \end{figure*}
 
-The level flight trajectory serves as a baseline validation of the controller's tracking performance under quasi-steady conditions. The fixed-wing aircraft maintains level flight with a constant elevator deflection of $\delta_e = -0.05$ rad to counteract gravity. 
+% The level flight trajectory serves as a baseline validation of the controller's tracking performance under quasi-steady conditions. The fixed-wing aircraft maintains level flight with a constant elevator deflection of $\delta_e = -0.05$ rad to counteract gravity.
 
-Fig.~\ref{fig:level_tracking} provides detailed tracking performance across all six degrees of freedom. The position plots (top panels) confirm that the gimbal camera position tracks the fixed-wing reference with negligible error, validating the translational component of the mimicry condition. The orientation plots (bottom panels) reveal the key insight of the proposed approach: while the multicopter body (blue) pitches to angles reaching 30° to generate the forward thrust required to match the fixed-wing's speed, the gimbal (green) actively compensates by counter-rotating, ensuring that the camera orientation precisely follows the fixed-wing's attitude (red). This behavior directly demonstrates the pose matching strategy presented in Section~\ref{sec:method}, where the control dynamic feedback control $\hat{\mathbf{u}}_\text{MC}$ is computed via Eq.~\eqref{eq:feedback_control_extended} to satisfy $\mathbf{q}_\text{M} \otimes \mathbf{q}_\text{G} = \mathbf{q}_\text{A}$.
+% Fig.~\ref{fig:level_tracking} provides detailed tracking performance across all six degrees of freedom. The position plots (top panels) confirm that the gimbal camera position tracks the fixed-wing reference with negligible error, validating the translational component of the mimicry condition. The orientation plots (bottom panels) reveal the key insight of the proposed approach: while the multicopter body (blue) pitches to angles reaching 30° to generate the forward thrust required to match the fixed-wing's speed, the gimbal (green) actively compensates by counter-rotating, ensuring that the camera orientation precisely follows the fixed-wing's attitude (red). This behavior directly demonstrates the pose matching strategy presented in Section~\ref{sec:method}, where the control dynamic feedback control $\hat{\mathbf{u}}_\text{MC}$ is computed via Eq.~\eqref{eq:feedback_control_extended} to satisfy $\mathbf{q}_\text{M} \otimes \mathbf{q}_\text{G} = \mathbf{q}_\text{A}$.
 
-The rapid gimbal response and absence of steady-state error confirm that the system operates well within the non-singular region defined by Assumption~\ref{ass:non_singularity} ($\cos\phi_\text{G}\cos\theta_\text{G} \neq 0$), maintaining full actuation authority throughout the trajectory.
+% The rapid gimbal response and absence of steady-state error confirm that the system operates well within the non-singular region defined by Assumption~\ref{ass:non_singularity} ($\cos\phi_\text{G}\cos\theta_\text{G} \neq 0$), maintaining full actuation authority throughout the trajectory.
+
+The level flight trajectory serves as a baseline validation of the controller's tracking performance under quasi-steady conditions. The fixed-wing aircraft is trimmed for cruise and held by its outer attitude-hold loop, exposing the controller to a near-constant forward-velocity reference. The position MAE settles at $0.26$ m (Table~\ref{tab:mae_summary}), the camera-orientation MAE remains at the numerical-precision floor of $2\times 10^{-4}\,^\circ$, and the multicopter body pitches forward to generate the forward thrust required to match the fixed-wing's speed while the gimbal actively counter-rotates so that the camera orientation precisely follows the fixed-wing attitude. This behaviour directly demonstrates the pose matching strategy presented in Section~\ref{sec:method}, where the dynamic feedback control $\hat{\mathbf{u}}_\text{MC}$ is computed via Eq.~\eqref{eq:feedback_control_extended} to satisfy $\mathbf{q}_\text{M} \otimes \mathbf{q}_\text{G} = \mathbf{q}_\text{A}$. The rapid gimbal response and the absence of steady-state error confirm that the system operates well inside the reachable region defined by Assumption~\ref{ass:non_singularity}, maintaining full actuation authority throughout the trajectory.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Trajectory 2: Aerobatic Loop}
 
-To stress-test the DFL controller under highly dynamic conditions, we command the fixed-wing aircraft to perform a vertical loop with a constant elevator deflection of $\delta_e = -0.25$ rad. This maneuver generates rapid variations in position, velocity, and orientation, with the aircraft experiencing significant changes in airspeed and load factor throughout the loop.
-
 %%%%%%%%%%%%%%%%%
-\begin{figure}[!b]
+% \begin{figure}[!b]
+%     \centering
+%     \includegraphics[width=0.4\textwidth]{figures/results/3d_trajectory_loop_cropped.pdf}
+%     \caption{3D trajectories of the fixed-wing aircraft (red), multicopter position (blue), and gimbal camera position (3-D axis) for loop manoeuvres.}
+%     \label{fig:3d_trajectory_loop}
+% \end{figure}
+%%%%%%%%%%%%%%%%%
+
+\begin{figure}[!t]
     \centering
-    \includegraphics[width=0.4\textwidth]{figures/results/3d_trajectory_loop_cropped.pdf}
-    \caption{3D trajectories of the fixed-wing aircraft (red), multicopter position (blue), and gimbal camera position (3-D axis) for loop manoeuvres.}
+    \includegraphics[width=0.95\columnwidth]{figures/results/v3/loop_3d.pdf}
+    \caption{Three-dimensional trajectory of the loop manoeuvre. The fixed-wing reference (red, with body-frame triad) and the multicopter--gimbal camera (dashed blue, with camera-frame triad) overlap along the full $360^\circ$ vertical pitch sweep.}
     \label{fig:3d_trajectory_loop}
 \end{figure}
-%%%%%%%%%%%%%%%%%
 
-As evident in Fig.~\ref{fig:3d_trajectory_loop}, the multicopter-gimbal system successfully completes the loop maneuver with the camera trajectory (green) closely following the fixed-wing path (red). The three-dimensional visualization demonstrates the controller's ability to handle rapid directional changes and varying gravitational loads throughout the vertical plane maneuver.
+\begin{figure}[!t]
+    \centering
+    \includegraphics[width=0.95\columnwidth]{figures/results/v3/loop_euler.pdf}
+    \caption{Camera vs.\ fixed-wing Euler angles during the loop. The pitch sweep saturates at $\pm 90^\circ$ and roll/yaw flip by $180^\circ$ at the inverted apex; the camera trace (green dashed) overlays the fixed-wing reference (red) at every sample.}
+    \label{fig:loop_tracking}
+\end{figure}
 
-Fig.~\ref{fig:loop_tracking} shows the full complexity of the tracking task. During the loop, the multicopter body orientation (blue) undergoes extreme pitch variations, exceeding 60° at the top of the loop, as the controller commands the thrust vector to track the aircraft's curved trajectory while counteracting changing gravitational forces. Simultaneously, the gimbal executes rapid compensatory motions to decouple the camera orientation from these aggressive multicopter body rotations. The result is that the gimbal camera orientation (green) remains tightly coupled to the fixed-wing reference (red), with tracking errors remaining bounded despite the challenging dynamics.
+% To stress-test the DFL controller under highly dynamic conditions, we command the fixed-wing aircraft to perform a vertical loop with a constant elevator deflection of $\delta_e = -0.25$ rad. This maneuver generates rapid variations in position, velocity, and orientation, with the aircraft experiencing significant changes in airspeed and load factor throughout the loop.
 
-The position tracking (top panels of Fig.~\ref{fig:loop_tracking}) shows brief transients during the highest-acceleration phases of the loop, but the controller maintains stability and convergence throughout. This performance validates the feedback linearization approach developed in Section~\ref{sec:method}, where the dynamic compensator (Eq.~\eqref{eq:new_quad_dynamics}) extends the relative degree to enable exact input-output decoupling. The linearized dynamics allow the controller to compute the required thrust derivatives $\ddot{T}$ and torques $\boldsymbol{\tau}_\text{M}$ that drive the tracking errors to zero.
+% As evident in Fig.~\ref{fig:3d_trajectory_loop}, the multicopter-gimbal system successfully completes the loop maneuver with the camera trajectory (green) closely following the fixed-wing path (red). The three-dimensional visualization demonstrates the controller's ability to handle rapid directional changes and varying gravitational loads throughout the vertical plane maneuver.
+
+% Fig.~\ref{fig:loop_tracking} shows the full complexity of the tracking task. During the loop, the multicopter body orientation (blue) undergoes extreme pitch variations, exceeding 60° at the top of the loop, as the controller commands the thrust vector to track the aircraft's curved trajectory while counteracting changing gravitational forces. Simultaneously, the gimbal executes rapid compensatory motions to decouple the camera orientation from these aggressive multicopter body rotations. The result is that the gimbal camera orientation (green) remains tightly coupled to the fixed-wing reference (red), with tracking errors remaining bounded despite the challenging dynamics.
+
+% The position tracking (top panels of Fig.~\ref{fig:loop_tracking}) shows brief transients during the highest-acceleration phases of the loop, but the controller maintains stability and convergence throughout. This performance validates the feedback linearization approach developed in Section~\ref{sec:method}, where the dynamic compensator (Eq.~\eqref{eq:new_quad_dynamics}) extends the relative degree to enable exact input-output decoupling. The linearized dynamics allow the controller to compute the required thrust derivatives $\ddot{T}$ and torques $\boldsymbol{\tau}_\text{M}$ that drive the tracking errors to zero.
+
+To stress-test the DFL controller under highly dynamic conditions, we command the fixed-wing aircraft to perform a vertical loop with a sustained elevator deflection. This manoeuvre generates rapid variations in position, velocity, and orientation, with the aircraft experiencing significant changes in airspeed and load factor throughout the loop. As evident in Fig.~\ref{fig:3d_trajectory_loop}, the multicopter--gimbal system successfully completes the loop, with the camera trajectory closely following the fixed-wing path. Fig.~\ref{fig:loop_tracking} confirms that the camera Euler angles match the fixed-wing reference even as the trajectory passes through inverted flight, where the pitch saturates at $\pm 90^\circ$ and the roll/yaw conventions flip by $180^\circ$. The position MAE stays at $0.26$ m and the orientation MAE at $2\times 10^{-4}\,^\circ$. The brief transients during the highest-acceleration phases validate the feedback linearization approach developed in Section~\ref{sec:method}, where the dynamic compensator~\eqref{eq:new_quad_dynamics} extends the relative degree to enable exact input-output decoupling. The linearized dynamics allow the controller to compute the required thrust derivatives $\ddot{T}$ and torques $\boldsymbol{\tau}_\text{M}$ that drive the tracking errors toward zero.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Trajectory 3: Aggressive Aerobatic Set}
+
+\begin{figure}[!t]
+    \centering
+    \subfloat[Barrel roll]{\includegraphics[width=0.47\columnwidth]{figures/results/v3/barrelroll_orient_err.pdf}\label{fig:err_barrelroll}}\hfill
+    \subfloat[Immelmann turn]{\includegraphics[width=0.47\columnwidth]{figures/results/v3/immelmann_orient_err.pdf}\label{fig:err_immelmann}}\\[2pt]
+    \subfloat[Split-S]{\includegraphics[width=0.47\columnwidth]{figures/results/v3/splits_orient_err.pdf}\label{fig:err_splits}}\hfill
+    \subfloat[Cuban-eight]{\includegraphics[width=0.47\columnwidth]{figures/results/v3/cuban8_orient_err.pdf}\label{fig:err_cuban8}}
+    \caption{Camera-orientation geodesic error (log scale) for the four aerobatic manoeuvres. The error remains at the integrator-tolerance floor ($\approx 10^{-4}\,^\circ$) throughout every full $360^\circ$ rotation; the brief spikes coincide with the load-factor reversals at the apex of each manoeuvre.}
+    \label{fig:aerobatic_err}
+\end{figure}
+
+The remaining manoeuvres exercise the controller against the full aerobatic catalogue: a barrel roll, an Immelmann turn, a Split-S, and a Cuban-eight. The complete numerical summary is given in Table~\ref{tab:mae_summary}, and the time-resolved camera-orientation error for all four cases is plotted in Fig.~\ref{fig:aerobatic_err}. Across the catalogue, the orientation geodesic error stays at the integrator-tolerance floor ($\approx 10^{-4}\,^\circ$), with brief excursions of at most $0.13^\circ$ at the highest-load reversals of the Split-S. The position MAE grows with manoeuvre duration and complexity, from $0.31$ m on the $2.5$ s barrel roll to $1.37$ m on the Split-S, but never exceeds a small fraction of the manoeuvre length. These results confirm that the same dynamic feedback law generalises to the entire aerobatic envelope without per-manoeuvre re-tuning.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Discussion}
-The simulation results validate the theoretical framework presented in Sections~\ref{sec:proof} and \ref{sec:method}. The multicopter-gimbal system successfully achieves camera-pose mimicry $\mathbf{y}_\text{MC}(t) \equiv \mathbf{y}_\text{AC}(t)$ for both steady and aggressive trajectories, confirming output full actuation on $SE(3)$, effective attitude decoupling, and the efficacy of the DFL controller with dynamic compensation in achieving precise tracking of the nonlinear, coupled multicopter-gimbal dynamics. The high-amplitude pitch oscillations observed in the multicopter body orientation during both trajectories, especially pronounced in the loop maneuver, highlight the inherent challenge of fixed-wing mimicry, where the multicopter must continuously reorient its thrust vector to follow the aircraft’s velocity profile. The gimbal’s ability to maintain smooth camera orientation despite these aggressive motions demonstrates the practical value of the proposed architecture. 
+% The simulation results validate the theoretical framework presented in Sections~\ref{sec:proof} and \ref{sec:method}. The multicopter-gimbal system successfully achieves camera-pose mimicry $\mathbf{y}_\text{MC}(t) \equiv \mathbf{y}_\text{AC}(t)$ for both steady and aggressive trajectories, confirming output full actuation on $SE(3)$, effective attitude decoupling, and the efficacy of the DFL controller with dynamic compensation in achieving precise tracking of the nonlinear, coupled multicopter-gimbal dynamics. The high-amplitude pitch oscillations observed in the multicopter body orientation during both trajectories, especially pronounced in the loop maneuver, highlight the inherent challenge of fixed-wing mimicry, where the multicopter must continuously reorient its thrust vector to follow the aircraft’s velocity profile. The gimbal’s ability to maintain smooth camera orientation despite these aggressive motions demonstrates the practical value of the proposed architecture.
+The simulation results validate the theoretical framework presented in Sections~\ref{sec:proof} and~\ref{sec:method}. The multicopter--gimbal system successfully achieves camera-pose mimicry $\mathbf{y}_\text{MC}(t) \equiv \mathbf{y}_\text{AC}(t)$ for both steady and aggressive trajectories, confirming output full actuation on $SE(3)$, effective attitude decoupling, and the efficacy of the DFL controller with dynamic compensation in achieving precise tracking of the nonlinear, coupled multicopter--gimbal dynamics. The high-amplitude pitch oscillations observed in the multicopter body orientation during the loop, barrel roll, Immelmann, Split-S, and Cuban-eight highlight the inherent challenge of fixed-wing mimicry, where the multicopter must continuously reorient its thrust vector to follow the aircraft's velocity profile. The gimbal's ability to maintain a smooth camera orientation despite these aggressive motions demonstrates the practical value of the proposed architecture, and the orientation error remaining at the numerical-precision floor across full $360^\circ$ rotations matches the global-controllability prediction associated with the 3-axis gimbal extension noted after Eq.~\eqref{eq:S_determinant}.
