@@ -39,3 +39,16 @@ test('overlays present', async ({ page }) => {
   await expect(page.locator('#overlay-drone   .hud-band-top')).toBeVisible();
   await expect(page.locator('#overlay-drone   .rotor-disc')).toHaveCount(4);
 });
+
+test('input bars present and live-updating', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__demoState !== undefined);
+  // 4 pilot input bars on the left
+  await expect(page.locator('#cockpit-inputs .input-row')).toHaveCount(4);
+  // 7 DFL u-vector bars on the right
+  await expect(page.locator('#drone-inputs   .input-row')).toHaveCount(7);
+  // Snapshot u from window.__demoState — must be present and length 7
+  const u = await page.evaluate(() => window.__demoState.u);
+  expect(Array.isArray(u)).toBe(true);
+  expect(u.length).toBe(7);
+});

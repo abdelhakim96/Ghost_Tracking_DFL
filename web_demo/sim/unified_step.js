@@ -1,6 +1,7 @@
 // web_demo/sim/unified_step.js
 import { fwDerivative, edge540Params } from './fw_dynamics.js';
 import { droneDerivative } from './drone_dynamics.js';
+import { dflController } from './dfl_controller.js';
 import { quatToR } from './quat.js';
 
 const FW_PARAMS = edge540Params();
@@ -65,6 +66,30 @@ export function unifiedRK4Step({ fwState, droneState, controlInputs, gains, dt }
   const newFw    = fwState.map((v, i) => v + dt/6 * (k1_fw[i] + 2*k2_fw[i] + 2*k3_fw[i] + k4_fw[i]));
   const newDrone = droneState.map((v, i) => v + dt/6 * (k1_dr[i] + 2*k2_dr[i] + 2*k3_dr[i] + k4_dr[i]));
   return { fwState: newFw, droneState: newDrone };
+}
+
+/**
+ * Snapshot the DFL controller's u vector at the current (fwState, droneState)
+ * and the given pilot controls. Independent of the integrator; for display only.
+ * @param {object} args
+ * @param {number[]} args.fwState
+ * @param {number[]} args.droneState
+ * @param {{ thrust:number, elevator:number, aileron:number, rudder:number }} args.controlInputs
+ * @param {object} args.gains
+ * @returns {number[]} 7-element u
+ */
+export function snapshotU({ fwState, droneState, controlInputs, gains }) {
+  const fwd = fwDerivative(fwState, controlInputs.thrust, controlInputs.elevator,
+                           controlInputs.aileron, controlInputs.rudder, FW_PARAMS);
+  const q = fwState.slice(6, 10);
+  const R = quatToR(q);
+  const ad_world = matVec3(R, [fwd[3], fwd[4], fwd[5]]);
+  return dflController({
+    droneState, fwState,
+    xd: fwState.slice(0, 3), vd: fwd.slice(0, 3), ad: ad_world,
+    jd: [0, 0, 0], sd: [0, 0, 0],
+    psid: 0, gains,
+  });
 }
 
 export function defaultGains() {
