@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ghost-Tracking DFL Demo</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  <div id="overlay">
+    <div id="labels"><span>FW camera POV</span><span>Drone gimbal-camera POV</span></div>
+    <div id="cheatsheet">
+      <strong>Pilot:</strong>
+      &uarr;/&darr; pitch &nbsp; &larr;/&rarr; roll &nbsp; A/D rudder &nbsp; W/S thrust &nbsp; R reset &nbsp; P pause
+    </div>
+  </div>
+  <script type="importmap">
+    { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+  </script>
+  <script type="module" src="main.js"></script>
+</body>
+</html>
