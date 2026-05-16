@@ -79,7 +79,7 @@ function extract_matlab_samples()
     end
     write_json(fullfile(out_dir, 'dfl_controller_samples.json'), dfl_samples);
 
-    % --- 5. drone_dynamics samples (xdot from drone_state + u + fw_state)
+    % --- 5. drone_dynamics samples (sdot from drone_state + setpoints + fw_state; controller invoked internally)
     dy_samples = cell(15, 1);
     for k = 1:15
         ds = random_drone_state();
@@ -88,8 +88,6 @@ function extract_matlab_samples()
         xd = fs(1:3); vd = randn(3,1); ad = zeros(3,1);
         jd = zeros(3,1); sd = zeros(3,1);
         % use the realtime function which calls dfl internally
-        global m Ix Iy Iz g
-        m = 0.468; Ix = 0.0023; Iy = 0.0023; Iz = 0.0046; g = 9.81;
         sdot = quadrotor_dynamics_realtime3(0, ds, xd, vd, ad, jd, sd, ...
                                             0, fs, fs(7:10), gains);
         dy_samples{k} = struct('drone_state', ds(:).', 'fw_state', fs(:).', ...
@@ -123,7 +121,6 @@ end
 
 function g = default_dfl_gains()
     g.c0 = 51150; g.c1 = 51140; g.c2 = 1150; g.c3 = 150;
-    g.c4 = 1; g.c5 = 1;
     g.c_phi = 50; g.c_theta = 50; g.c_psig = 50;
     g.c_q3 = 100; g.c_q3_dot = 20;
 end
