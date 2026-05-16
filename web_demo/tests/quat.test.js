@@ -27,10 +27,17 @@ describe('quat', () => {
     }
   });
 
-  it('quat_to_R produces a proper rotation matrix (det=1, R R^T = I)', () => {
+  it('quat_to_R produces a proper rotation matrix (R R^T = I, det = +1)', () => {
     for (const s of samples) {
       const R = quatToR(s.a);
-      // det(R) = 1
+      // R R^T = I (orthogonality)
+      for (let i = 0; i < 3; i++) {
+        for (let j = 0; j < 3; j++) {
+          const dot = R[3*i]*R[3*j] + R[3*i+1]*R[3*j+1] + R[3*i+2]*R[3*j+2];
+          expect(dot).toBeCloseTo(i === j ? 1 : 0, 10);
+        }
+      }
+      // det(R) = +1 (proper, not reflection)
       const det = R[0]*(R[4]*R[8] - R[5]*R[7])
                 - R[1]*(R[3]*R[8] - R[5]*R[6])
                 + R[2]*(R[3]*R[7] - R[4]*R[6]);

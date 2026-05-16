@@ -1,6 +1,12 @@
 // web_demo/sim/quat.js
 // Scalar-first quaternions: q = [w, x, y, z]
 
+/**
+ * Hamilton product of two scalar-first quaternions.
+ * @param {number[]} a  4-vector [w, x, y, z]
+ * @param {number[]} b  4-vector [w, x, y, z]
+ * @returns {number[]}  4-vector a (x) b
+ */
 export function quatMul(a, b) {
   const [a0, a1, a2, a3] = a;
   const [b0, b1, b2, b3] = b;
@@ -12,20 +18,40 @@ export function quatMul(a, b) {
   ];
 }
 
+/**
+ * Conjugate of a scalar-first quaternion.
+ * @param {number[]} q  4-vector [w, x, y, z]
+ * @returns {number[]}  4-vector [w, -x, -y, -z]
+ */
 export function quatConj(q) {
   return [q[0], -q[1], -q[2], -q[3]];
 }
 
+/**
+ * Euclidean norm of a quaternion.
+ * @param {number[]} q  4-vector [w, x, y, z]
+ * @returns {number}    sqrt(w^2 + x^2 + y^2 + z^2)
+ */
 export function quatNorm(q) {
   return Math.hypot(q[0], q[1], q[2], q[3]);
 }
 
+/**
+ * Normalize a quaternion to unit length (epsilon-guarded).
+ * @param {number[]} q  4-vector [w, x, y, z]
+ * @returns {number[]}  unit-norm 4-vector
+ */
 export function quatNormalize(q) {
   const n = quatNorm(q) + 1e-12;
   return [q[0]/n, q[1]/n, q[2]/n, q[3]/n];
 }
 
-// 3x3 rotation matrix as a flat row-major [r00, r01, r02, r10, r11, r12, r20, r21, r22]
+/**
+ * Convert a quaternion to a 3x3 rotation matrix, returned as a row-major flat
+ * 9-array [r00, r01, r02, r10, r11, r12, r20, r21, r22].
+ * @param {number[]} q  4-vector [w, x, y, z]
+ * @returns {number[]}  row-major flat 9-array
+ */
 export function quatToR(q) {
   const [w, x, y, z] = quatNormalize(q);
   return [
@@ -35,7 +61,12 @@ export function quatToR(q) {
   ];
 }
 
-// Rotate a 3-vector by quaternion
+/**
+ * Rotate a 3-vector by a quaternion.
+ * @param {number[]} q  4-vector [w, x, y, z]
+ * @param {number[]} v  3-vector [x, y, z]
+ * @returns {number[]}  rotated 3-vector
+ */
 export function quatRot(q, v) {
   const R = quatToR(q);
   return [
@@ -45,7 +76,13 @@ export function quatRot(q, v) {
   ];
 }
 
-// Minimum-rotation quaternion from unit vector a to unit vector b
+/**
+ * Minimum-rotation quaternion that maps unit vector a onto unit vector b.
+ * Handles the antiparallel case by choosing an arbitrary orthogonal axis.
+ * @param {number[]} a  unit 3-vector
+ * @param {number[]} b  unit 3-vector
+ * @returns {number[]}  unit quaternion [w, x, y, z]
+ */
 export function vecToQuat(a, b) {
   const dot = a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
   if (dot > 0.999999) return [1, 0, 0, 0];
