@@ -1,6 +1,7 @@
 // web_demo/sim/unified_step.js
 import { fwDerivative, edge540Params } from './fw_dynamics.js';
 import { droneDerivative } from './drone_dynamics.js';
+import { quatToR } from './quat.js';
 
 const FW_PARAMS = edge540Params();
 
@@ -10,12 +11,24 @@ function addScaled(a, b, scale) {
   return out;
 }
 
+function matVec3(M, v) {
+  return [
+    M[0]*v[0]+M[1]*v[1]+M[2]*v[2],
+    M[3]*v[0]+M[4]*v[1]+M[5]*v[2],
+    M[6]*v[0]+M[7]*v[1]+M[8]*v[2],
+  ];
+}
+
 export function unifiedRK4Step({ fwState, droneState, controlInputs, gains, dt }) {
   const refsAt = (fw) => {
     const fwd = fwDerivative(fw, controlInputs.thrust, controlInputs.elevator,
                              controlInputs.aileron, controlInputs.rudder, FW_PARAMS);
+    const q = fw.slice(6, 10);
+    const R = quatToR(q);
+    const v_dot_body = [fwd[3], fwd[4], fwd[5]];
+    const ad_world = matVec3(R, v_dot_body);
     return { xd: fw.slice(0, 3), vd: fwd.slice(0, 3),
-             ad: fwd.slice(3, 6), jd: [0, 0, 0], sd: [0, 0, 0],
+             ad: ad_world, jd: [0, 0, 0], sd: [0, 0, 0],
              fwd };
   };
 
