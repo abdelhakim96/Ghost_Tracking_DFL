@@ -79,6 +79,10 @@ dfl_gains.c3 = 150.0;    % Jerk gain
 dfl_gains.c4 = 1.0;   % Yaw gain
 dfl_gains.c5 = 1.00;    % Yaw rate gain
 
-% Gimbal Gains
-dfl_gains.c_phi = 21500.0      % Proportional gain for gimbal roll
-dfl_gains.c_theta = 11700.0;    % Proportional gain for gimbal pitch
+% Gimbal Gains — re-tuned for the corrected controller where the gimbal
+% actively tracks q_rel = qbar_M (x) q_A. Original code used c_phi ~ 21500
+% with the broken Z-Y extraction that left phi_g_ref near zero, so the
+% gimbal stayed put. With the fix it actually moves, and c_phi that high
+% creates a stiff system ode45 cannot resolve at relTol=1e-4.
+dfl_gains.c_phi   = 50.0;
+dfl_gains.c_theta = 50.0;

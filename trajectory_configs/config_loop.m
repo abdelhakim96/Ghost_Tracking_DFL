@@ -61,6 +61,6 @@ dfl_gains.c3 = 100.0;    % Jerk gain
 dfl_gains.c4 = 10.0;   % Yaw gain
 dfl_gains.c5 = 10.00;    % Yaw rate gain
 
-% Gimbal Gains
-dfl_gains.c_phi = 50000.0;      % Proportional gain for gimbal roll
-dfl_gains.c_theta = 70000.0;    % Proportional gain for gimbal pitch
+% Gimbal Gains — re-tuned for the corrected controller (see notes in config_roll.m)
+dfl_gains.c_phi   = 50.0;
+dfl_gains.c_theta = 50.0;

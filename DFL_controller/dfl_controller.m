@@ -52,28 +52,35 @@ vpsi = omega_b(1)*(2*q1*q3 - 2*q0*q2) + omega_b(2)*(2*q2*q3 + 2*q0*q1) + omega_b
 v_pos = sd - c3*(j - jd) - c2*(a_ - ad) - c1*(v_w - vd) - c0*(x_w - xd);
 v_yaw = 0 - c5*(vpsi - 0) - c4*(atan2(2*(q0*q3+q1*q2), 1-2*(q2^2+q3^2)) - psid);
 
-% Gimbal virtual control
-% --- NEW: Full Orientation Tracking ---
-% The reference is the fixed-wing's full 3D orientation.
-% We want the gimbal's world orientation to match the fixed-wing's world orientation.
-% R_gimbal_w = R_bw * R_gb  should equal R_fw_w
-% So, the desired gimbal orientation in the body frame is R_gb_ref = R_bw' * R_fw_w
+% Gimbal virtual control --- paper-consistent X-Y extraction from q_rel
+% Paper: q_M (x) q_G = q_A  with  q_G = q_x(phi_g) (x) q_y(theta_g).
+% After the yaw schedule (applied upstream in unified_dynamics via psid),
+% q_rel = qbar_M (x) q_A lies (approximately) on the X-Y submanifold of SO(3),
+% so we can read off (phi_g, theta_g) directly.
 
-% Convert fixed-wing quaternion to rotation matrix
 q_fw = fw_orientation / (norm(fw_orientation) + 1e-9);
-q0_fw=q_fw(1); q1_fw=q_fw(2); q2_fw=q_fw(3); q3_fw=q_fw(4);
-R_fw_w = [q0_fw^2+q1_fw^2-q2_fw^2-q3_fw^2, 2*(q1_fw*q2_fw-q0_fw*q3_fw), 2*(q1_fw*q3_fw+q0_fw*q2_fw);
-          2*(q1_fw*q2_fw+q0_fw*q3_fw), q0_fw^2-q1_fw^2+q2^2-q3^2, 2*(q2_fw*q3_fw-q0_fw*q1_fw);
-          2*(q1_fw*q3_fw-q0_fw*q2_fw), 2*(q2_fw*q3_fw+q0_fw*q1_fw), q0_fw^2-q1^2-q2^2+q3^2];
+q_rel = quat_mul(quat_conj(q_bw(:)), q_fw(:));
 
-% Calculate the desired gimbal orientation relative to the quadrotor body
-R_gb_ref = R_bw' * R_fw_w;
+% q_x(phi) (x) q_y(theta) -> rotation matrix:
+%   R = [ cos(theta)            0           sin(theta);
+%         sin(phi)*sin(theta)   cos(phi)   -sin(phi)*cos(theta);
+%        -cos(phi)*sin(theta)   sin(phi)    cos(phi)*cos(theta) ];
+% So:  sin(theta) =  R(1,3),  cos(theta) = sqrt(R(1,1)^2 + R(1,2)^2)
+%      sin(phi)   = -R(2,3)/cos(theta)? — actually:
+%      phi   = atan2( R(2,3) * (-1) , R(3,3) )   no — use:
+% Re-derive from rotation: with R built as above,
+%   theta = atan2(  R(1,3),  R(1,1) )       (since R(1,2)=0 in this submanifold)
+%   phi   = atan2( -R(2,3),  R(3,3) )
+% These are exact when q_rel is on the X-Y submanifold; off-manifold they are
+% the projection.
+qr = q_rel / (norm(q_rel) + 1e-9);
+qr0=qr(1); qr1=qr(2); qr2=qr(3); qr3=qr(4);
+R_rel = [qr0^2+qr1^2-qr2^2-qr3^2, 2*(qr1*qr2-qr0*qr3), 2*(qr1*qr3+qr0*qr2);
+         2*(qr1*qr2+qr0*qr3), qr0^2-qr1^2+qr2^2-qr3^2, 2*(qr2*qr3-qr0*qr1);
+         2*(qr1*qr3-qr0*qr2), 2*(qr2*qr3+qr0*qr1), qr0^2-qr1^2-qr2^2+qr3^2];
 
-% Extract gimbal angles from the desired rotation matrix.
-% This assumes a Z-Y rotation sequence for the gimbal (phi_g is yaw, theta_g is pitch)
-% which matches the kinematics used to generate the pointing vector previously.
-theta_g_ref_raw = asin(-R_gb_ref(3,1));
-phi_g_ref_raw = atan2(R_gb_ref(2,1), R_gb_ref(1,1));
+theta_g_ref_raw = atan2( R_rel(1,3),  R_rel(1,1));
+phi_g_ref_raw   = atan2(-R_rel(2,3),  R_rel(3,3));
 
 % --- Reference Angle Unwrapping and Singularity Avoidance ---
 % Initialize persistent variables on first run
@@ -106,19 +113,22 @@ else
 end
 last_theta_g_ref = theta_g_ref;
 
-% Virtual control for gimbal (first-order system)
-%
+% Virtual control for gimbal (first-order system).
+% Body-frame derivation: with q_G = q_x(phi_g) (x) q_y(theta_g), the gimbal
+% contribution to the camera angular velocity, expressed in DRONE body frame, is
+%   omega_gimbal_in_drone_body = [ dphi_g;  cos(phi_g)*dtheta_g;  sin(phi_g)*dtheta_g ].
+% We want  omega_cam_in_drone_body = omega_drone_in_drone_body + omega_gimbal_in_drone_body
+% with omega_cam = omega_FW (mimicry condition q_cam = q_A).
+fw_omega_b = fw_state(11:13);
+R_gb_desired = R_bw' * quat2rotm(q_fw');      % FW body -> drone body
+omega_cam_b_demand = R_gb_desired * fw_omega_b - omega_b;
 
-R_fw_w = quat2rotm(q_fw');
-R_gb_desired = R_bw' * R_fw_w;
-
-fw_omega_b = fw_state(11:13);  % [p_fw, q_fw, r_fw]
-omega_fw_in_b = R_gb_desired * fw_omega_b;
-omega_rel_b = omega_fw_in_b - omega_b;
-phi_g_ref_dot = omega_rel_b(1);   % Desired roll rate
-theta_g_ref_dot = omega_rel_b(2); % Desired pitch rate
-
-%
+% Least-squares solve M * [dphi_g; dtheta_g] = omega_cam_b_demand
+%   M = [1, 0; 0, cos(phi_g); 0, sin(phi_g)]
+% Exact when the demand lies in range(M); residual along (sin(phi_g)e2 - cos(phi_g)e3)
+% goes into the drone-yaw channel via the psid schedule (handled upstream).
+phi_g_ref_dot   = omega_cam_b_demand(1);
+theta_g_ref_dot = cos(phi_g)*omega_cam_b_demand(2) + sin(phi_g)*omega_cam_b_demand(3);
 
 v_phi = -c_phi * (phi_g - phi_g_ref) + 1.0 * phi_g_ref_dot;
 v_theta = -c_theta * (theta_g - theta_g_ref) + 1.0 * theta_g_ref_dot;

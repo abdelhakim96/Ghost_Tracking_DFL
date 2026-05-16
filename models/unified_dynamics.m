@@ -35,7 +35,41 @@ function state_dot = unified_dynamics(t, state, fw_params, fw_controls, dfl_gain
     % --- Pass Reference Trajectory to Quadrotor Controller ---
     % The DFL controller uses the full state of the fixed-wing as the reference.
     fw_orientation = fw_state(7:10); % Pass quaternion to the controller
-    quad_state_dot = quadrotor_dynamics_realtime(t, quad_state, ref_pos_ned, ref_vel_ned, ref_acc_ned, ref_jerk_ned, ref_snap_ned, 0, fw_state, fw_orientation, dfl_gains);
+
+    % Yaw schedule (paper Eq. (16)): psi_M_ref = yaw( qbar_tilt (x) q_A )
+    % q_tilt is the minimum-angle quaternion that aligns body z with the
+    % desired thrust direction (a_des + g e3).
+    global g
+    a_des = ref_acc_ned(:);
+    e3 = [0; 0; 1];
+    % NED convention used here: gravity acts along +z. Required body-z (in world)
+    % such that f_thrust_world + gravity = m * a_des, with thrust along -z_body
+    % cancelled by writing T R e3 - m g e3 = m a_des  =>  b3_des = (a_des + g e3)/|.|
+    n_vec = a_des + g*e3;
+    nn = norm(n_vec);
+    if nn < 1e-6
+        b3_des = e3;
+    else
+        b3_des = n_vec / nn;
+    end
+    q_tilt = vec_to_quat(e3, b3_des);
+    q_tmp  = quat_mul(quat_conj(q_tilt), fw_orientation(:));
+    % Yaw via forward-axis projection: well-defined unless the forward axis is
+    % near vertical (loops at pitch = +-90 deg). Standard ZYX atan2 is singular
+    % there and feeds noise into the high-gain DFL, so fall back to the last
+    % stable value when the horizontal projection is small.
+    persistent psid_last
+    if isempty(psid_last), psid_last = 0; end
+    fwd = quatrotate_v(q_tmp, [1;0;0]);
+    horiz = hypot(fwd(1), fwd(2));
+    if horiz > 0.1
+        psid_scheduled = atan2(fwd(2), fwd(1));
+        psid_last = psid_scheduled;
+    else
+        psid_scheduled = psid_last;
+    end
+
+    quad_state_dot = quadrotor_dynamics_realtime(t, quad_state, ref_pos_ned, ref_vel_ned, ref_acc_ned, ref_jerk_ned, ref_snap_ned, psid_scheduled, fw_state, fw_orientation, dfl_gains);
 
     % --- Combine Derivatives ---
     state_dot = [quad_state_dot; fw_state_dot];

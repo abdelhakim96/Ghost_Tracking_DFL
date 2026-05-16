@@ -1,2 +1,4 @@
 # Ignore generated results files
 results/
+results_*.mat
+*.asv
