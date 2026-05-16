@@ -43,13 +43,16 @@ fw_controls.thrust = 100 * ones(size(t_sim));
 % Body-pitch rate ~ Cm_de * elevator * qbar*S*c / Iy. With elevator = -0.4,
 % qbar = 8820, expect q ≈ -0.4 * -1.8 * 8820 * 9.1 * 1.22 / 750 ≈ 95 rad/s^2 (!)
 % — way too aggressive. Reduce to -0.2 to get pitch rate ~ 1.5 rad/s
-% Wider loop with elevator amp tuned so the integrated body-pitch lands
-% right at 180 deg (a half-loop). Previously -0.06 for 2.35 s gave 209 deg
-% of body-pitch -- too much overshoot. Shorter pulse compensates.
+% Pull-up pulse. With autopilot active later, the trajectory is now
+% dominated by *less* effective pull-up (steady-state q ~ 1.4 rad/s with
+% -0.06, but it never reaches steady state in 2 s, so we only get ~120 deg
+% of body-pitch instead of the 180 we want).
+%   Bump to -0.09 and a slightly longer pulse to get ~180 deg pitch within
+%   2.5 s, and reach a clearly-inverted apex (R33 < -0.7).
 ele = zeros(size(t_sim));
 loop_t0 = 0.30;
-loop_t1 = 2.20;
-ele_amp = -0.06;
+loop_t1 = 2.50;
+ele_amp = -0.09;
 ele_ramp = 0.15;
 % Phase D: small positive (push-down) elevator after the half-roll, to
 % counter the Edge 540's natural excess lift and keep the FW level on the
@@ -82,8 +85,8 @@ fw_controls.elevator = ele;
 % during the loop and roll effectiveness (~V) is reduced. Bump duration to
 % 1.05 s to reach a full 180 deg.
 ail = zeros(size(t_sim));
-roll_t0 = 2.45;
-roll_t1 = 3.55;
+roll_t0 = 2.75;
+roll_t1 = 3.85;
 ail_amp = 0.30;
 ail_ramp = 0.10;
 for k = 1:length(t_sim)
@@ -103,7 +106,7 @@ fw_controls.rudder = zeros(size(t_sim));
 % --- Attitude-hold autopilot (Option A: small PD on roll/pitch, rate damper
 %     on yaw). Engages just after the scripted half-roll completes, holds
 %     the FW level on the heading-reversed leg.
-fw_controls.stabilize_after = 3.65;             % half-roll ends at ~3.55+ramp
+fw_controls.stabilize_after = 3.95;             % half-roll ends at ~3.85+ramp
 fw_controls.stabilize_target.phi_ref   = 0;     % wings level
 fw_controls.stabilize_target.theta_ref = 0;     % nose level (overridden by altitude hold)
 fw_controls.stabilize_target.r_ref     = 0;     % no yaw rate

@@ -19,20 +19,22 @@ function [del, dai, dru] = fw_attitude_hold(fw_state, target, gains, alt_ref)
     % Conservative defaults — Edge 540 has very strong control authority
     % (Cl_da = 0.5, Cm_de = -1.8). Big gains cause violent corrections and
     % integrate huge fake body-rotation in the post-maneuver coast.
-    % Tuned for fast attitude settling on the Edge 540 at 120 m/s.
-    if ~isfield(gains, 'kp_phi'),   gains.kp_phi   = 0.20; end
-    if ~isfield(gains, 'kd_phi'),   gains.kd_phi   = 0.10; end
-    if ~isfield(gains, 'kp_theta'), gains.kp_theta = 0.40; end
-    if ~isfield(gains, 'kd_theta'), gains.kd_theta = 0.18; end
+    % Conservative gains — strong control authority means small gains
+    % already give plenty of bandwidth, and high gains were causing the
+    % FW to re-flip past inverted in the recovery leg.
+    if ~isfield(gains, 'kp_phi'),   gains.kp_phi   = 0.10; end
+    if ~isfield(gains, 'kd_phi'),   gains.kd_phi   = 0.12; end
+    if ~isfield(gains, 'kp_theta'), gains.kp_theta = 0.18; end
+    if ~isfield(gains, 'kd_theta'), gains.kd_theta = 0.15; end
     if ~isfield(gains, 'kd_r'),     gains.kd_r     = 0.05; end
     % Constant elevator trim added on top of PD — Edge 540 has CL0 = 0.4
     % which creates an upward bias the PD can't cancel with zero error.
     if ~isfield(gains, 'elevator_trim'), gains.elevator_trim = +0.010; end
     % Altitude-hold outer loop (optional, only if alt_ref passed in).
     % Output is a pitch reference fed into the inner pitch PD.
-    if ~isfield(gains, 'kp_alt'), gains.kp_alt = 0.005; end   % rad pitch per m alt err
-    if ~isfield(gains, 'kd_w'),   gains.kd_w   = 0.025; end   % rad pitch per m/s w_world
-    if ~isfield(gains, 'theta_ref_max'), gains.theta_ref_max = 0.25; end   % limit pitch ref
+    if ~isfield(gains, 'kp_alt'), gains.kp_alt = 0.002; end   % rad pitch per m alt err
+    if ~isfield(gains, 'kd_w'),   gains.kd_w   = 0.040; end   % rad pitch per m/s w_world (more damping)
+    if ~isfield(gains, 'theta_ref_max'), gains.theta_ref_max = 0.18; end   % stricter pitch ref limit
 
     if ~isfield(target, 'phi_ref'),   target.phi_ref   = 0; end
     if ~isfield(target, 'theta_ref'), target.theta_ref = 0; end
@@ -70,9 +72,13 @@ function [del, dai, dru] = fw_attitude_hold(fw_state, target, gains, alt_ref)
     %   roll_dynamics: p_dot ~ +Cl_da * delta_a, Cl_da > 0
     %   We want p_dot in direction of -e_phi if PD form is right.
     %   Empirically signs verified for the Edge 540 model used here.
-    dai = -(gains.kp_phi * e_phi + gains.kd_phi * p);
-    del = -(gains.kp_theta * e_theta + gains.kd_theta * q) + gains.elevator_trim;
-    dru = -(gains.kd_r * e_r);
+    % Signs derived from the Edge 540 model conventions:
+    %   Cl_da = +0.5 -> +aileron causes +roll  -> for damping +roll, use -aileron
+    %   Cm_de = -1.8 -> +elevator causes -pitch -> for damping +pitch, use +elevator
+    %   Cn_dr = -0.1 -> +rudder   causes -yaw   -> for damping +r, use +rudder
+    dai = +gains.kp_phi   * e_phi   - gains.kd_phi   * p;
+    del = -gains.kp_theta * e_theta + gains.kd_theta * q + gains.elevator_trim;
+    dru = +gains.kd_r     * (r - target.r_ref);
 
     % Saturate to plausible deflection range
     dai = max(-0.6, min(0.6, dai));
