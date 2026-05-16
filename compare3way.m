@@ -1,8 +1,8 @@
 function compare3way(base_tag, fix_tag, v3_tag, title_str)
 % compare3way Side-by-side plot: baseline vs Phase 0+2+3 vs Phase 1+5.
-    B = load(['results_' base_tag '.mat']); B = B.out;
-    F = load(['results_' fix_tag  '.mat']); F = F.out;
-    V = load(['results_' v3_tag   '.mat']); V = V.out;
+    B = load(fullfile('results', ['results_' base_tag '.mat'])); B = B.out;
+    F = load(fullfile('results', ['results_' fix_tag  '.mat'])); F = F.out;
+    V = load(fullfile('results', ['results_' v3_tag   '.mat'])); V = V.out;
 
     fprintf('\n=== %s ===\n', title_str);
     fprintf('%-30s %15s %15s %15s\n', 'metric', base_tag, fix_tag, v3_tag);
@@ -29,8 +29,9 @@ function compare3way(base_tag, fix_tag, v3_tag, title_str)
     legend('Location','best');
 
     sgtitle(title_str);
-    fname = sprintf('compare3way_%s.png', title_str);
-    fname = strrep(fname, ' ', '_');
+    out_dir = fullfile('plots', '3way_comparison');
+    if ~exist(out_dir, 'dir'), mkdir(out_dir); end
+    fname = fullfile(out_dir, sprintf('%s_3way.png', strrep(title_str, ' ', '_')));
     saveas(fig, fname);
     fprintf('Saved figure: %s\n', fname);
 end

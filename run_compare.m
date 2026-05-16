@@ -53,7 +53,8 @@ function out = run_compare(config_to_run, tag)
                              'min_cosphig_costhetag', NaN, 'final_time', NaN);
     end
 
-    save(['results_' tag '.mat'], 'out');
+    if ~exist('results', 'dir'), mkdir('results'); end
+    save(fullfile('results', ['results_' tag '.mat']), 'out');
     fprintf('[run_compare] %s done. Final t=%.3fs, MAE pos=%.4fm, MAE orient=%.3f deg, min |cos(phi_g)cos(theta_g)|=%.4f\n', ...
         tag, out.metrics.final_time, out.metrics.mae_pos, out.metrics.mae_orient_deg, out.metrics.min_cosphig_costhetag);
 end

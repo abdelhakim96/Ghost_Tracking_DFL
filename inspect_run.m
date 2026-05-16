@@ -1,5 +1,5 @@
 function inspect_run(tag)
-    S = load(['results_' tag '.mat']); out = S.out;
+    S = load(fullfile('results', ['results_' tag '.mat'])); out = S.out;
     t = out.t; s = out.state;
     fprintf('--- %s ---\n', tag);
     fprintf('final t: %.3fs (diverged=%d)\n', t(end), out.diverged);

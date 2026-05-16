@@ -1,8 +1,8 @@
 function compare_runs(base_tag, fix_tag)
 % compare_runs Side-by-side metrics + figure for two saved runs.
 
-    base = load(['results_' base_tag '.mat']); base = base.out;
-    fix  = load(['results_' fix_tag  '.mat']); fix  = fix.out;
+    base = load(fullfile('results', ['results_' base_tag '.mat'])); base = base.out;
+    fix  = load(fullfile('results', ['results_' fix_tag  '.mat'])); fix  = fix.out;
 
     fprintf('\n=== %s vs %s ===\n', base_tag, fix_tag);
     fprintf('%-35s %12s %12s\n', 'metric', base_tag, fix_tag);
@@ -54,8 +54,13 @@ function compare_runs(base_tag, fix_tag)
     yline(0,'k:');
     xlabel('t (s)'); ylabel('|cos\phi_g cos\theta_g|'); title('2-axis gimbal authority (paper Assumption 1)'); legend('Location','best');
 
-    saveas(fig, sprintf('compare_%s_vs_%s.png', base_tag, fix_tag));
-    fprintf('\nSaved figure: compare_%s_vs_%s.png\n', base_tag, fix_tag);
+    out_dir = fullfile('plots', '2axis_phase0+2+3');
+    if ~exist(out_dir, 'dir'), mkdir(out_dir); end
+    % Map saved-tag names to nicer file names by stripping "baseline_"/"fix_"
+    scenario = regexprep(base_tag, '^(baseline_|fix_|noyaw_|v3_)', '');
+    fname = fullfile(out_dir, sprintf('%s_baseline_vs_fix.png', scenario));
+    saveas(fig, fname);
+    fprintf('\nSaved figure: %s\n', fname);
 end
 
 function [pos, ori] = window_metrics(run, t_end_common)

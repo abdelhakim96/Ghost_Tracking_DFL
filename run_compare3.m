@@ -48,7 +48,8 @@ function out = run_compare3(config_to_run, tag)
         out.metrics = struct('mae_pos',NaN,'mae_orient_deg',NaN,'max_pos_err',NaN, ...
                              'max_orient_err_deg',NaN,'min_costheta_g',NaN,'final_time',NaN);
     end
-    save(['results_' tag '.mat'], 'out');
+    if ~exist('results', 'dir'), mkdir('results'); end
+    save(fullfile('results', ['results_' tag '.mat']), 'out');
     fprintf('[run_compare3] %s done. final t=%.3fs, MAE pos=%.4fm, MAE orient=%.3f deg, min|cos(theta_g)|=%.4f\n', ...
         tag, out.metrics.final_time, out.metrics.mae_pos, out.metrics.mae_orient_deg, out.metrics.min_costheta_g);
 end
