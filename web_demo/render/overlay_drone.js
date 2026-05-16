@@ -1,89 +1,137 @@
 // web_demo/render/overlay_drone.js
-// HTML/CSS overlay rendered on top of the right viewport. Shows spinning
-// rotor discs, live gimbal angles, and the DFL controller's u vector as bars.
+// Big drone-style overlay: visible quad frame at the bottom 33% with rotor
+// arms coming from corners + gimbal mount + DFL u-vector bars.
 
-// Reasonable bar limits for the DFL u vector. These are visualisation only;
-// the underlying values are not clamped. Picked so typical magnitudes are
-// visible without saturating: torques ~ +-1 N·m, T_ddot ~ +-50 N/s^2,
-// gimbal rates ~ +-3 rad/s.
 const U_LIMITS = {
-  T_ddot:  50,
-  tau_phi:   1,
-  tau_theta: 1,
-  tau_psi:   1,
-  dphi_g:    3,
-  dtheta_g:  3,
-  dpsi_g:    3,
+  T_ddot:    50,
+  tau_phi:    1,
+  tau_theta:  1,
+  tau_psi:    1,
+  dphi_g:     3,
+  dtheta_g:   3,
+  dpsi_g:     3,
 };
 
 /**
- * Mount the drone-style overlay on the given element.
- * @param {HTMLElement} parentEl  container DOM element
- * @param {() => number[]} getDroneState  returns the live 18-element drone state
+ * Mount the drone overlay.
+ * @param {HTMLElement} parentEl
+ * @param {() => number[]} getDroneState
  * @returns {{ setU: (u: number[]) => void }}
  */
 export function mountDroneOverlay(parentEl, getDroneState) {
   parentEl.innerHTML = `
-    <div class="hud-rail-left"></div>
-    <div class="hud-rail-right"></div>
-    <div class="hud-band-top">
-      <div class="hud-readout" id="drone-readout">
-        <span data-k="phig">  PHI_g    -- °</span>
-        <span data-k="thetag">THE_g    -- °</span>
-        <span data-k="psig">  PSI_g    -- °</span>
-      </div>
-      <div class="rotor-row">
-        <div class="rotor-disc"></div>
-        <div class="rotor-disc"></div>
-        <div class="rotor-disc"></div>
-        <div class="rotor-disc"></div>
-      </div>
+    <!-- Top label band -->
+    <div class="drone-top-band">
+      <span class="hud-label">DRONE GIMBAL CAMERA &mdash; 3-AXIS</span>
+      <span class="hud-label" id="drone-readout-text">PHI -- THE -- PSI --</span>
     </div>
-    <div class="input-panel" id="drone-inputs">
-      <div class="input-panel-title">DFL CONTROLLER OUTPUT u &rarr; DRONE</div>
-      ${inputRow('T_ddot',  'T_ddot',    'N/s²')}
-      ${inputRow('TAU_phi', 'tau_phi',   'N·m')}
-      ${inputRow('TAU_the', 'tau_theta', 'N·m')}
-      ${inputRow('TAU_psi', 'tau_psi',   'N·m')}
-      ${inputRow('dPHI_g',  'dphi_g',    'rad/s')}
-      ${inputRow('dTHE_g',  'dtheta_g',  'rad/s')}
-      ${inputRow('dPSI_g',  'dpsi_g',    'rad/s')}
-    </div>
-    <div class="hud-band-bottom">
-      <span class="hud-label">DRONE + GIMBAL CAMERA</span>
-      <span class="hud-label">3-AXIS</span>
+
+    <!-- Foreground quad frame, rotor arms + gimbal bracket -->
+    <svg class="drone-frame" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <radialGradient id="rotorGlow">
+          <stop offset="0%"  stop-color="rgba(200,220,240,0.7)"/>
+          <stop offset="80%" stop-color="rgba(200,220,240,0)"/>
+        </radialGradient>
+      </defs>
+      <!-- 4 arms angled from corners toward centre-bottom -->
+      <g stroke="#888" stroke-width="0.7" stroke-linecap="round" fill="none">
+        <line x1="0"   y1="100" x2="35" y2="78"/>
+        <line x1="100" y1="100" x2="65" y2="78"/>
+        <line x1="0"   y1="55"  x2="35" y2="78"/>
+        <line x1="100" y1="55"  x2="65" y2="78"/>
+      </g>
+      <!-- Body -->
+      <rect x="42" y="74" width="16" height="10" rx="2" fill="#222831" stroke="#888" stroke-width="0.5"/>
+      <!-- Gimbal mount bracket (frame attached below body) -->
+      <path d="M44,84 L44,89 Q44,92 47,92 L53,92 Q56,92 56,89 L56,84"
+            fill="none" stroke="#aaa" stroke-width="0.6"/>
+      <!-- 4 rotor discs (CSS animated via SMIL would be heavier; use static blur with disc and tick) -->
+      <g>
+        <circle cx="0"   cy="100" r="9" fill="url(#rotorGlow)"/>
+        <circle cx="100" cy="100" r="9" fill="url(#rotorGlow)"/>
+        <circle cx="0"   cy="55"  r="9" fill="url(#rotorGlow)"/>
+        <circle cx="100" cy="55"  r="9" fill="url(#rotorGlow)"/>
+        <circle cx="0"   cy="100" r="9" fill="none" stroke="#9ab" stroke-width="0.3" stroke-dasharray="1,1.5" class="rotor-spin"/>
+        <circle cx="100" cy="100" r="9" fill="none" stroke="#9ab" stroke-width="0.3" stroke-dasharray="1,1.5" class="rotor-spin"/>
+        <circle cx="0"   cy="55"  r="9" fill="none" stroke="#9ab" stroke-width="0.3" stroke-dasharray="1,1.5" class="rotor-spin"/>
+        <circle cx="100" cy="55"  r="9" fill="none" stroke="#9ab" stroke-width="0.3" stroke-dasharray="1,1.5" class="rotor-spin"/>
+      </g>
+    </svg>
+
+    <!-- Dashboard at bottom: gimbal indicators + u-vector bars -->
+    <div class="drone-dashboard">
+      <div class="dash-row">
+        ${svgGimbalRing('phi_g',   'PHI_g')}
+        ${svgGimbalRing('theta_g', 'THE_g')}
+        ${svgGimbalRing('psi_g',   'PSI_g')}
+        <div class="u-bars" id="drone-inputs">
+          <div class="u-bars-title">DFL u &rarr; DRONE</div>
+          ${uBarRow('T_ddot',  'T̈',     'N/s²')}
+          ${uBarRow('tau_phi', 'τ_φ',    'N·m')}
+          ${uBarRow('tau_theta','τ_θ',   'N·m')}
+          ${uBarRow('tau_psi', 'τ_ψ',    'N·m')}
+          ${uBarRow('dphi_g',  'φ̇_g',   'rad/s')}
+          ${uBarRow('dtheta_g','θ̇_g',   'rad/s')}
+          ${uBarRow('dpsi_g',  'ψ̇_g',   'rad/s')}
+        </div>
+      </div>
     </div>
   `;
-  const readout = parentEl.querySelector('#drone-readout');
-  const inputs  = parentEl.querySelector('#drone-inputs');
+
+  const readoutText = parentEl.querySelector('#drone-readout-text');
+  const inputs = parentEl.querySelector('#drone-inputs');
 
   function tick() {
     const s = getDroneState();
     const phi   = s[13] * 180 / Math.PI;
     const theta = s[14] * 180 / Math.PI;
     const psi   = s[15] * 180 / Math.PI;
-    setSpan(readout, 'phig',   `PHI_g ${padSigned(phi,   4)} °`);
-    setSpan(readout, 'thetag', `THE_g ${padSigned(theta, 4)} °`);
-    setSpan(readout, 'psig',   `PSI_g ${padSigned(psi,   4)} °`);
+    readoutText.textContent =
+      `PHI_g ${padSigned(phi, 4)}°   THE_g ${padSigned(theta, 4)}°   PSI_g ${padSigned(psi, 4)}°`;
+    updateGimbalRing(parentEl, 'phi_g',   phi);
+    updateGimbalRing(parentEl, 'theta_g', theta);
+    updateGimbalRing(parentEl, 'psi_g',   psi);
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
 
   function setU(u) {
-    setBar(inputs, 'T_ddot',    u[0], U_LIMITS.T_ddot,    2, 'N/s²');
-    setBar(inputs, 'tau_phi',   u[1], U_LIMITS.tau_phi,   3, 'N·m');
-    setBar(inputs, 'tau_theta', u[2], U_LIMITS.tau_theta, 3, 'N·m');
-    setBar(inputs, 'tau_psi',   u[3], U_LIMITS.tau_psi,   3, 'N·m');
-    setBar(inputs, 'dphi_g',    u[4], U_LIMITS.dphi_g,    3, 'rad/s');
-    setBar(inputs, 'dtheta_g',  u[5], U_LIMITS.dtheta_g,  3, 'rad/s');
-    setBar(inputs, 'dpsi_g',    u[6], U_LIMITS.dpsi_g,    3, 'rad/s');
+    setUBar(inputs, 'T_ddot',    u[0], U_LIMITS.T_ddot,    2, 'N/s²');
+    setUBar(inputs, 'tau_phi',   u[1], U_LIMITS.tau_phi,   3, 'N·m');
+    setUBar(inputs, 'tau_theta', u[2], U_LIMITS.tau_theta, 3, 'N·m');
+    setUBar(inputs, 'tau_psi',   u[3], U_LIMITS.tau_psi,   3, 'N·m');
+    setUBar(inputs, 'dphi_g',    u[4], U_LIMITS.dphi_g,    3, 'rad/s');
+    setUBar(inputs, 'dtheta_g',  u[5], U_LIMITS.dtheta_g,  3, 'rad/s');
+    setUBar(inputs, 'dpsi_g',    u[6], U_LIMITS.dpsi_g,    3, 'rad/s');
   }
   return { setU };
 }
 
-function inputRow(label, key, unit) {
+function svgGimbalRing(key, label) {
+  return `<div class="instr instr-gimbal">
+    <svg viewBox="-50 -50 100 100">
+      <circle cx="0" cy="0" r="42" fill="#0a0e16" stroke="#6cc" stroke-width="1.5"/>
+      <g stroke="#cfe" stroke-width="0.6" fill="none">
+        ${tickMarks(0, 360, 30, 36, 42)}
+      </g>
+      <polygon points="0,-40 -3,-30 3,-30" fill="#ff0" id="ring-${key}-mark"/>
+      <text x="0" y="2" text-anchor="middle" fill="#ff0" font-size="12" font-family="monospace" font-weight="bold" id="ring-${key}-val">-- °</text>
+      <text x="0" y="38" text-anchor="middle" fill="#cfe" font-size="6">${label}</text>
+    </svg>
+  </div>`;
+}
+
+function updateGimbalRing(root, key, deg) {
+  const mark = root.querySelector(`#ring-${key}-mark`);
+  const val  = root.querySelector(`#ring-${key}-val`);
+  if (mark) mark.setAttribute('transform', `rotate(${deg})`);
+  if (val)  val.textContent = `${deg.toFixed(0)}°`;
+}
+
+function uBarRow(key, label, unit) {
   return `
-    <div class="input-row">
+    <div class="input-row u-row">
       <span class="input-label">${label}</span>
       <div class="input-bar"><div class="input-bar-fill" data-bar="${key}"></div></div>
       <span class="input-value" data-val="${key}">-- ${unit}</span>
@@ -91,7 +139,7 @@ function inputRow(label, key, unit) {
   `;
 }
 
-function setBar(root, key, value, limit, digits, unit) {
+function setUBar(root, key, value, limit, digits, unit) {
   const fill = root.querySelector(`[data-bar="${key}"]`);
   const val  = root.querySelector(`[data-val="${key}"]`);
   if (!fill || !val) return;
@@ -108,9 +156,15 @@ function setBar(root, key, value, limit, digits, unit) {
   val.textContent = `${value.toFixed(digits)} ${unit}`;
 }
 
-function setSpan(root, key, text) {
-  const el = root.querySelector(`[data-k="${key}"]`);
-  if (el) el.textContent = text;
+function tickMarks(start, end, step, r0, r1) {
+  let out = '';
+  for (let a = start; a < end; a += step) {
+    const rad = a * Math.PI / 180;
+    const sx = r0 * Math.sin(rad), sy = -r0 * Math.cos(rad);
+    const ex = r1 * Math.sin(rad), ey = -r1 * Math.cos(rad);
+    out += `<line x1="${sx.toFixed(1)}" y1="${sy.toFixed(1)}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}"/>`;
+  }
+  return out;
 }
 
 function padSigned(n, w) {

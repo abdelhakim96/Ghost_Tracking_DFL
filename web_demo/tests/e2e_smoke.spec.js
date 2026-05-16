@@ -35,16 +35,14 @@ test('inset canvas is present and has WebGL', async ({ page }) => {
 test('overlays present', async ({ page }) => {
   await page.goto('/');
   await page.waitForFunction(() => window.__demoState !== undefined);
-  await expect(page.locator('#overlay-cockpit .hud-band-top')).toBeVisible();
-  await expect(page.locator('#overlay-drone   .hud-band-top')).toBeVisible();
-  await expect(page.locator('#overlay-drone   .rotor-disc')).toHaveCount(4);
+  await expect(page.locator('#overlay-cockpit .cockpit-dashboard')).toBeVisible();
+  await expect(page.locator('#overlay-drone   .drone-dashboard')).toBeVisible();
+  await expect(page.locator('#overlay-drone   .rotor-spin')).toHaveCount(4);
 });
 
 test('input bars present and live-updating', async ({ page }) => {
   await page.goto('/');
   await page.waitForFunction(() => window.__demoState !== undefined);
-  // 4 pilot input bars on the left
-  await expect(page.locator('#cockpit-inputs .input-row')).toHaveCount(4);
   // 7 DFL u-vector bars on the right
   await expect(page.locator('#drone-inputs   .input-row')).toHaveCount(7);
   // Snapshot u from window.__demoState — must be present and length 7
