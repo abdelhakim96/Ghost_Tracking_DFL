@@ -3,15 +3,16 @@
 import * as THREE from 'three';
 import { Sky } from 'https://unpkg.com/three@0.160.0/examples/jsm/objects/Sky.js';
 
-const TERRAIN_SIZE = 12000;
-const TERRAIN_SEG  = 200;
+const TERRAIN_SIZE = 24000;
+const TERRAIN_SEG  = 240;
 const SEA_LEVEL    = 0;
 const SUN_ELEV_DEG = 28;
 const SUN_AZ_DEG   = 90;
 
 export function buildScene() {
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0xbfd7e8, 500, 6000);
+  // Mild fog so distant terrain is visible but still has atmospheric depth
+  scene.fog = new THREE.Fog(0xcfe3ed, 2000, 18000);
 
   // Sky — Three.js atmospheric scattering (no external assets)
   const sky = new Sky();
@@ -31,13 +32,14 @@ export function buildScene() {
   scene.add(sun);
   scene.add(new THREE.AmbientLight(0x7090b0, 0.65));
 
-  // Sea
+  // Sea — kept smaller than terrain so land dominates the view; brighter
+  // teal-blue so it doesn't drown the scene
   const sea = new THREE.Mesh(
     new THREE.PlaneGeometry(40000, 40000, 1, 1),
-    new THREE.MeshPhongMaterial({ color: 0x143b5c, shininess: 90, specular: 0x88aacc }),
+    new THREE.MeshPhongMaterial({ color: 0x2c7396, shininess: 90, specular: 0xc8dfe8 }),
   );
   sea.rotation.x = -Math.PI / 2;
-  sea.position.y = SEA_LEVEL;
+  sea.position.y = SEA_LEVEL - 5;     // sits just below terrain shore
   scene.add(sea);
 
   // Procedural noise-displaced terrain mesh
@@ -54,15 +56,16 @@ function makeTerrain() {
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i);
     const z = pos.getZ(i);
-    const r = Math.hypot(x, z);
+    // Multi-octave noise — pushed up so most of the box is above sea level
     let h = 0;
-    h += valueNoise(x * 0.00030, z * 0.00030) * 600;
-    h += valueNoise(x * 0.00120, z * 0.00120) * 120;
-    h += valueNoise(x * 0.00500, z * 0.00500) * 30;
-    const land = Math.max(0, h - 80);
-    // Coastal smoothing: heights near origin are gentler so the FW has room
-    const coastal = Math.min(1, r / 800);
-    pos.setY(i, land * coastal);
+    h += valueNoise(x * 0.00018, z * 0.00018) * 800;   // big rolling hills
+    h += valueNoise(x * 0.00080, z * 0.00080) * 220;   // medium peaks
+    h += valueNoise(x * 0.00350, z * 0.00350) * 60;    // small detail
+    h += valueNoise(x * 0.01200, z * 0.01200) * 15;    // surface roughness
+    // Bias: land sits between ~20 m and ~900 m, with occasional valleys
+    // that dip to sea (allowing rivers/coast where noise is low).
+    const land = Math.max(-30, h - 60);
+    pos.setY(i, land);
   }
   pos.needsUpdate = true;
   geom.computeVertexNormals();

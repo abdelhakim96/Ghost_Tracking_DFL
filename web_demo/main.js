@@ -24,10 +24,22 @@ let droneState = initialDroneState();
 const gains    = defaultGains();
 let paused     = false;
 
+function resetSim() {
+  fwState = initialFwState();
+  droneState = initialDroneState();
+}
+function togglePause() {
+  paused = !paused;
+  const btn = document.getElementById('btn-pause');
+  if (btn) { btn.textContent = paused ? 'RESUME' : 'PAUSE'; btn.classList.toggle('active', paused); }
+}
+
 window.addEventListener('keydown', (e) => {
-  if (e.code === 'KeyR') { fwState = initialFwState(); droneState = initialDroneState(); }
-  if (e.code === 'KeyP') { paused = !paused; }
+  if (e.code === 'KeyR') resetSim();
+  if (e.code === 'KeyP') togglePause();
 });
+document.getElementById('btn-reset')?.addEventListener('click', resetSim);
+document.getElementById('btn-pause')?.addEventListener('click', togglePause);
 
 const cockpitApi = mountCockpitOverlay(document.getElementById('overlay-cockpit'), () => fwState);
 const droneApi   = mountDroneOverlay  (document.getElementById('overlay-drone'),   () => droneState);

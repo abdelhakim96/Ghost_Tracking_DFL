@@ -101,17 +101,19 @@ export function defaultGains() {
   };
 }
 
+// Spawn altitude raised to 600 m so the new terrain is clearly visible below
+// and the FW has room to manoeuvre without immediately clipping a hill.
 export function initialFwState() {
-  return [0, 0, -100,
-          30, 0, 0,        // was 120 -> too fast for Edge 540 to fly level open-loop
+  return [0, 0, -600,
+          30, 0, 0,
           1, 0, 0, 0,
           0, 0, 0];
 }
 
 export function initialDroneState() {
-  return [0, 0, -100,
+  return [0, 0, -600,
           1, 0, 0, 0,
-          30, 0, 0,        // match FW velocity
+          30, 0, 0,
           0, 0, 0,
           0, 0, 0,
           0.468 * 9.81, 0];

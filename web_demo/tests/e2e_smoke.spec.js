@@ -40,6 +40,31 @@ test('overlays present', async ({ page }) => {
   await expect(page.locator('#overlay-drone   .rotor-spin')).toHaveCount(4);
 });
 
+test('reset button resets the simulation', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => window.__demoState !== undefined);
+
+  // Pitch up to displace the FW off its initial position
+  await page.keyboard.down('ArrowUp');
+  await page.waitForTimeout(800);
+  await page.keyboard.up('ArrowUp');
+  await page.waitForTimeout(500);
+
+  const fwPosBefore = await page.evaluate(() => window.__demoState.fwPos);
+  expect(Math.hypot(fwPosBefore[0], fwPosBefore[1])).toBeGreaterThan(5);
+
+  // Click reset
+  await page.locator('#btn-reset').click();
+  await page.waitForTimeout(200);
+
+  const fwPosAfter = await page.evaluate(() => window.__demoState.fwPos);
+  const distBefore = Math.hypot(fwPosBefore[0], fwPosBefore[1]);
+  const distAfter  = Math.hypot(fwPosAfter[0],  fwPosAfter[1]);
+  // After reset the FW has only had ~0.2 s to fly at 30 m/s, so its
+  // distance from origin should be a small fraction of the pre-reset value.
+  expect(distAfter).toBeLessThan(distBefore / 3);
+});
+
 test('input bars present and live-updating', async ({ page }) => {
   await page.goto('/');
   await page.waitForFunction(() => window.__demoState !== undefined);
