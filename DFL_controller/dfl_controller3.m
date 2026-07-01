@@ -90,8 +90,22 @@ function u = dfl_controller3(t, state, xd, vd, ad, jd, sd, psid, fw_state, fw_or
     Ag_p = 0.01; Ag_q = 0.01; Ag_r = 0.01;
     Ig_x = 0.001; Ig_y = 0.001; Ig_z = 0.001;
 
-    alpha_val = alpha_gimbal_func3(state, 0, 0, 0, Ag_p, Ag_q, Ag_r, Ix, Iy, Iz, Ig_x, Ig_y, Ig_z, zeta, xi, m);
-    beta_val  = beta_gimbal_func3 (state, 0, 0, 0, Ag_p, Ag_q, Ag_r, Ix, Iy, Iz, Ig_x, Ig_y, Ig_z, zeta, xi, m);
+    % Singularity-robust inverse: the decoupling map carries a 1/q0 term that
+    % blows up at the body-attitude representation singularity (q0 -> 0, i.e.
+    % >=90 deg tilt / inverted flight). Floor |q0| at eps_q0 when evaluating the
+    % inverse so the linearizing law stays bounded through inversions (damped-
+    % least-squares style: exact away from the singular set, bounded through it).
+    eps_q0 = 0.15;
+    if isfield(dfl_gains,'eps_q0'), eps_q0 = dfl_gains.eps_q0; end
+    state_inv = state;
+    if abs(q0) < eps_q0
+        q0r  = sign(q0 + (q0==0)) * eps_q0;
+        qreg = [q0r; q1; q2; q3]; qreg = qreg / norm(qreg);
+        state_inv(4:7) = qreg;
+    end
+
+    alpha_val = alpha_gimbal_func3(state_inv, 0, 0, 0, Ag_p, Ag_q, Ag_r, Ix, Iy, Iz, Ig_x, Ig_y, Ig_z, zeta, xi, m);
+    beta_val  = beta_gimbal_func3 (state_inv, 0, 0, 0, Ag_p, Ag_q, Ag_r, Ix, Iy, Iz, Ig_x, Ig_y, Ig_z, zeta, xi, m);
     u = alpha_val + beta_val * v;
 end
 

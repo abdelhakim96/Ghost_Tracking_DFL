@@ -1,0 +1,20 @@
+Reviewer 19 of CCTA 2026 submission 136
+
+Comments to the author
+======================
+
+The paper proposes a control strategy for a multicopter
+equipped with a two-axis gimbal based on emulation of the
+flight dynamics of a fixed-wing aircraft. The control
+design is based on a state-input mapping between the two
+aircraft types that is derived based on feedback
+linearization. Overall the approach is interesting but not
+so surprising or novel. Indeed the core issues on
+singularities and input saturation that are usually
+encountered in feedback linearization approaches for such
+problems, are not mitigated here but are rather tackled
+through the convenient Assumptions 1 and 2. Based on this
+and the fact that the results are only simulation based, it
+might be the case that the approach needs further
+elaboration, either theoretically or experimentally or
+both, before reaching publication status.

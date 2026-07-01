@@ -13,7 +13,7 @@
 
 \usepackage{lipsum} % for dummy text
 \usepackage{scrextend} % for footnote with multiple references
-\usepackage[pdftex]{graphicx} % graphics package
+\usepackage{graphicx} % graphics package
 \usepackage[caption=false]{subfig} % subplot package
 \usepackage{siunitx} % package for international system units
 \usepackage{multirow} % multiple rows in table
@@ -26,7 +26,6 @@
 \usepackage{amssymb}
 \usepackage{dblfloatfix} % to place floats on the bottom of the page
 \usepackage[ruled,vlined,resetcount]{algorithm2e}
-\usepackage[caption=false,font=footnotesize]{subfig}
 \usepackage{tikz}
 \usetikzlibrary{shapes, arrows, fit, calc, positioning, automata, decorations.markings, backgrounds}
 \tikzset{>=latex}
@@ -62,7 +61,7 @@ Dynamic System Emulation: Fixed Wing Dynamics on a Multicopter
 
 \begin{document}
 
-\bstctlcite{IEEEexample:BSTcontrol}
+%\bstctlcite{IEEEexample:BSTcontrol}
 
 \maketitle
 \thispagestyle{empty}
@@ -75,11 +74,9 @@ Dynamic System Emulation: Fixed Wing Dynamics on a Multicopter
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{abstract}
 
-% This work presents a control framework that enables a multicopter equipped with a two-axis gimbal to emulate the flight dynamics of a fixed-wing aircraft. The goal is to provide an operationally simple platform for training and simulation that avoids the aerodynamic constraints of fixed-wing vehicles, such as minimum airspeed and nonholonomic constraints.
-This work presents a control framework that enables a multicopter equipped with a three-axis camera gimbal to emulate the flight dynamics of a fixed-wing aircraft. The goal is to provide an operationally simple platform for training and simulation that avoids the aerodynamic constraints of fixed-wing vehicles, such as minimum airspeed and nonholonomic constraints.
-A state-input mapping between the two platforms is derived using dynamic feedback linearization. %The mapping yields a fourth-order translational chain and a second-order heading chain, allowing the multirotor to track trajectories produced by a virtual fixed-wing model. To maintain performance near actuator and model limits, we introduce an authority-aware geometric damping augmentation that applies geometric PD-style attitude damping and proportionally scales outer-loop demands to avoid divergence under low-authority conditions.
-The framework is evaluated on representative fixed-wing manoeuvres, including a level flight, a vertical loop, a barrel roll, an Immelmann turn, a Split-S, and a Cuban-eight. %Tracking performance is quantified via translational mean absolute error and attitude geodesic error between the fixed-wing reference and the quadcopter–gimbal system.
-Results show high-fidelity emulation under nominal conditions, with the camera-orientation geodesic error driven to the numerical-precision floor over full $360^\circ$ aerobatic rotations. While evaluations are conducted in simulation, the approach establishes a practical path toward hardware deployment for pilot training, autonomy research, and controller benchmarking.
+This work presents a control framework that enables a multicopter equipped with a camera gimbal to emulate the flight dynamics of a fixed-wing aircraft. The goal is to provide an operationally simple platform for training and simulation that avoids the operating constraints of fixed-wing vehicles, such as minimum airspeed and nonholonomic constraints.
+A state-input mapping between the two platforms is derived using dynamic feedback linearization. Because the exact inverse is invertible, the actuator and gimbal limits are pulled back through it to characterize, constructively, the set of feasible reference trajectories; a reference governor keeps the emulation within this set, and a singularity-robust formulation bounds the inverse through inverted flight.
+The framework is evaluated on a three-axis-gimbal platform across a suite of aerobatic manoeuvres, reproducing the fixed-wing camera pose with sub-degree orientation error and sub-metre position error. While evaluations are conducted in simulation, the approach establishes a practical path toward hardware deployment for pilot training, autonomy research, and controller benchmarking.
 
 \end{abstract}
 
@@ -163,29 +160,25 @@ is the quaternion kinematics matrix, $m_\text{A}$ is aircraft's mass, and $\math
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% \subsection{Multicopter with 2-Axis Gimbal Dynamics}
 \subsection{Multicopter with 3-Axis Gimbal Dynamics}
 
 %%%%%%%%%%%%%%%%%%%%
 \begin{figure}[!b]
 \centering
 \includegraphics[width=0.9\columnwidth, trim={0 0 0 1cm}, clip]{quad.pdf}%
-% \caption{Multicopter with two-axis gimbal shown with its reference frames, control inputs (in red) and output variables (in blue).}
-\caption{Multicopter with three-axis gimbal shown with its reference frames, control inputs (in red) and output variables (in blue).}
+\caption{Multicopter with a camera gimbal shown with its reference frames, control inputs (in red) and output variables (in blue).}
 \label{fig:quadcopter}
 \end{figure}
 %%%%%%%%%%%%%%%%%%%%
 
-Multicopters (in Fig.~\ref{fig:quadcopter}) are also underactuated dynamic systems.
-Let $\mathcal{F}_\text{M}$ be the multicopter's body frame. The multicopter's pose is given by its position $\mathbf p_\text{M} = \begin{bmatrix} x_\text{M} & y_\text{M} & z_\text{M} \end{bmatrix}^\top \in \mathbb{R}^3$ in $\mathcal F_\text{W}$ and a quaternion $\mathbf q_\text{M} \in \mathbb{H}_1$ mapping $\mathcal F_\text{M} \to \mathcal F_\text{W}$ with $\phi_\text{M}$, $\theta_\text{M}$ and $\psi_\text{M}$ being roll, pitch and yaw angles, respectively.
+Multicopters (in Fig.~\ref{fig:quadcopter}) are also underactuated dynamic systems. 
+Let $\mathcal{F}_\text{M}$ be the multicopter's body frame. The multicopter's pose is given by its position $\mathbf p_\text{M} = \begin{bmatrix} x_\text{M} & y_\text{M} & z_\text{M} \end{bmatrix}^\top \in \mathbb{R}^3$ in $\mathcal F_\text{W}$ and a quaternion $\mathbf q_\text{M} \in \mathbb{H}_1$ mapping $\mathcal F_\text{M} \to \mathcal F_\text{W}$ with $\phi_\text{M}$, $\theta_\text{M}$ and $\psi_\text{M}$ being roll, pitch and yaw angles, respectively. 
 Multicopter's linear and angular velocities in $\mathcal{F}_\text{M}$ are $\mathbf{v}_\text{M} \in \mathbb{R}^3$ and $\boldsymbol{\omega}_\text{M} \in \mathbb{R}^3$, respectively.
-% The multicopter is equipped with a camera mounted on a 2-axis roll-pitch gimbal with joint angles $\phi_\text{G}$ and $\theta_\text{G}$ and quaternion $\mathbf{q}_\text{MC} = \mathbf{q}_x(\phi_\text{G}) \otimes \mathbf{q}_y(\theta_\text{G}) \in \mathbb{H}_1$, which maps from the multicopter's camera frame $\mathcal{F}_\text{MC}$ to $\mathcal{F}_\text{M}$. Let the camera lever arm in $\mathcal{F}_\text{M}$ be $\mathbf{t}_\text{G} \in \mathbb{R}^3$.
-The multicopter is equipped with a camera mounted on a 3-axis roll-pitch-yaw gimbal with joint angles $\phi_\text{G}$, $\theta_\text{G}$ and $\psi_\text{G}$ and quaternion $\mathbf{q}_\text{G} = \mathbf{q}_x(\phi_\text{G}) \otimes \mathbf{q}_y(\theta_\text{G}) \otimes \mathbf{q}_z(\psi_\text{G}) \in \mathbb{H}_1$, which maps from the multicopter's camera frame $\mathcal{F}_\text{MC}$ to $\mathcal{F}_\text{M}$. Let the camera lever arm in $\mathcal{F}_\text{M}$ be $\mathbf{t}_\text{G} \in \mathbb{R}^3$.
-% The state of a multicopter with a two-axis gimbal is
-The state of a multicopter with a three-axis gimbal is
+The multicopter is equipped with a camera mounted on a 3-axis gimbal with joint angles $\boldsymbol{\Theta}_\text{G} = \begin{bmatrix} \phi_\text{G} & \theta_\text{G} & \psi_\text{G} \end{bmatrix}^\top$ and quaternion $\mathbf{q}_\text{G} = \mathbf{q}_x(\phi_\text{G}) \otimes \mathbf{q}_y(\theta_\text{G}) \otimes \mathbf{q}_z(\psi_\text{G}) \in \mathbb{H}_1$, which maps from the multicopter's camera frame $\mathcal{F}_\text{MC}$ to $\mathcal{F}_\text{M}$. Let the camera lever arm in $\mathcal{F}_\text{M}$ be $\mathbf{t}_\text{G} \in \mathbb{R}^3$.
+The state of a multicopter with a 3-axis gimbal is
 %%%%%%%%%%%%%%%%%%%%
 \begin{equation}
-\mathbf{x}_\text{M} = \begin{bmatrix} \mathbf{p}_\text{M} & \mathbf{q}_\text{M} & \mathbf{v}_\text{M} & \boldsymbol{\omega}_\text{M} & \mathbf{q}_\text{G} \end{bmatrix}^\top,
+\mathbf{x}_\text{M} = \begin{bmatrix} \mathbf{p}_\text{M} & \mathbf{q}_\text{M} & \mathbf{v}_\text{M} & \boldsymbol{\omega}_\text{M} & \boldsymbol{\Theta}_\text{G} \end{bmatrix}^\top,
 \label{eq:quad_x}
 \end{equation}
 %%%%%%%%%%%%%%%%%%%%
@@ -206,16 +199,12 @@ Commonly, the control input to a multicopter is
 %%%%%%%%%%%%%%%%%%%%
 where $T$ is total thrust, $\tau_\phi$, $\tau_\theta$, and $\tau_\psi$ are torques around $x$-, $y$- and $z$-axes, respectively. Control inputs to the gimbal are
 %%%%%%%%%%%%%%%%%%%%
-% \begin{equation}
-% \mathbf{u}_\text{G} = \begin{bmatrix} \dot\theta_\text{G} & \dot\psi_\text{G} \end{bmatrix}^\top.
-% \label{eq:gimbal_u}
-% \end{equation}
 \begin{equation}
-\mathbf{u}_\text{G} = \begin{bmatrix} \dot\phi_\text{G} & \dot\theta_\text{G} & \dot\psi_\text{G} \end{bmatrix}^\top.
+\mathbf{u}_\text{G} = \dot{\boldsymbol{\Theta}}_\text{G} = \begin{bmatrix} \dot\phi_\text{G} & \dot\theta_\text{G} & \dot\psi_\text{G} \end{bmatrix}^\top,
 \label{eq:gimbal_u}
 \end{equation}
 %%%%%%%%%%%%%%%%%%%%
-%where $\dot\theta_\text{G}$ and $\dot\psi_\text{G}$ are gimbal's roll and pitch rates, respectively.
+i.e.\ the gimbal roll, pitch and yaw rates.
 The total force acting on the multicopter in $\mathcal{F}_\text{M}$ is $\mathbf{f}_\text{M} = \begin{bmatrix} 0 & 0 & T \end{bmatrix}^\top + \mathbf{R}\left(\mathbf{q}_\text{M}\right)^\top \begin{bmatrix} 0 & 0 & -g \end{bmatrix}^\top$; while the total torque in $\mathcal{F}_\text{M}$ is $\boldsymbol{\tau}_\text{M} = \begin{bmatrix} \tau_\phi & \tau_\theta & \tau_\psi \end{bmatrix}^\top$.
 So, the kinematics and dynamics of a multicopter with a gimbal are:
 %%%%%%%%%%%%%%%%%%%%
@@ -226,7 +215,7 @@ f_\text{M}:
 \dot{\mathbf{q}}_\text{M} = \frac{1}{2} \mathbf{G}\left(\mathbf{q}_\text{M}\right) \boldsymbol{\omega}_\text{M} \\
 \dot{\mathbf{v}}_\text{M} = -\boldsymbol{\omega}_\text{M} \times \mathbf{v}_\text{M} + \frac{1}{m_\text{M}} \mathbf{f}_\text{M} \\
 \dot{\boldsymbol{\omega}}_\text{M} = -\left(\mathbf{J}_\text{M}\right)^{-1} \boldsymbol{\omega}_\text{M} \times (\mathbf{J}_\text{M} \boldsymbol{\omega}_\text{M}) + \left(\mathbf{J}_\text{M}\right)^{-1} \boldsymbol{\tau}_\text{M} \\
-\dot{\mathbf{q}}_\text{MC} = \frac{1}{2} \mathbf{G}\left(\mathbf{q}_\text{MC}\right) \mathbf{u}_\text{G}
+\dot{\boldsymbol{\Theta}}_\text{G} = \mathbf{u}_\text{G}
 \end{cases},
 \label{eq:quad_dynamics}
 \end{equation} 
@@ -262,7 +251,7 @@ Then, the fixed-wing camera pose is
 
 % Our goal is to realize $\mathbf{y}^{C}(t)\equiv\mathbf{y}^{A\!\to C}(t)$ along any \emph{feasible} trajectory.
 
-We expose (i) a translational ``virtual'' input $\,\mathbf{a}_\text{MC} \in \mathbb{R}^3$ realized by the standard $SE(3)$ inner loop (third line of~\eqref{eq:quad_dynamics}), and (ii) rotational inputs $\dot{\boldsymbol{\Theta}}_\text{MC} = \begin{bmatrix} \dot\phi_\text{G} & \dot\theta_\text{G} & \dot\psi_\text{M} \end{bmatrix}^\top$ consisting of gimbal roll and pitch rates and the multicopter’s free body yaw rate around $\vec{\mathbf{z}}_\text{M}$, which does not alter the thrust direction.
+We expose (i) a translational ``virtual'' input $\,\mathbf{a}_\text{MC} \in \mathbb{R}^3$ realized by the standard $SE(3)$ inner loop (third line of~\eqref{eq:quad_dynamics}), and (ii) the gimbal rate inputs $\mathbf{u}_\text{G} = \dot{\boldsymbol{\Theta}}_\text{G} \in \mathbb{R}^3$. The multicopter body attitude $\mathbf{q}_\text{M}$ is dictated by the thrust direction required for translation, with its free yaw held at zero; the camera orientation is therefore matched by the three gimbal degrees of freedom.
 
 From \eqref{eq:gimbal_y}, the position of the multicopter's camera in the $\mathcal{F}_\text{W}$ is 
 %%%%%%%%%%%%%%%%%%%%
@@ -291,35 +280,35 @@ where $\boldsymbol\Delta(\mathbf{p}_\text{MC}, \mathbf{q}_\text{M}, \boldsymbol{
 \label{eq:qc_dot}
 \end{equation}
 %%%%%%%%%%%%%%%%%%%%
-where $\boldsymbol{\omega}_\text{MC} = \mathbf{S}(\phi_\text{G}, \theta_\text{G}) \dot{\boldsymbol{\Theta}}_\text{MC}$ with the input-twist matrix
+where the camera angular velocity decomposes as $\boldsymbol{\omega}_\text{MC} = \mathbf{R}(\mathbf{q}_\text{G})^\top \boldsymbol{\omega}_\text{M} + \mathbf{J}_\text{G}(\phi_\text{G}, \theta_\text{G}) \mathbf{u}_\text{G}$ with the 3-axis gimbal Jacobian
 \begin{equation}
-\mathbf{S}(\phi,\theta)=
+\mathbf{J}_\text{G}(\phi,\theta)=
 \begin{bmatrix}
-1 & 0 & -\sin\theta\cos\phi\\
-0 & 1 & -\sin\phi\\
-0 & 0 & \ \cos\theta\cos\phi
+1 & 0 & \sin\theta\\
+0 & \cos\phi & -\sin\phi\cos\theta\\
+0 & \sin\phi & \ \cos\phi\cos\theta
 \end{bmatrix},
-\label{eq:S_matrix}
+\label{eq:Jg_matrix}
 \end{equation}
-whose determinant is 
+whose determinant is
 %%%%%%%%%%%%%%%%%%%%
 \begin{equation}
-\det \mathbf{S}(\phi,\theta)=\cos\theta\,\cos\phi.
-\label{eq:S_determinant}
+\det \mathbf{J}_\text{G}(\phi,\theta)=\cos\theta.
+\label{eq:Jg_determinant}
 \end{equation}
 %%%%%%%%%%%%%%%%%%%%
 
 \begin{remark}
-Singularities for a 2-axis gimbal occur at $\cos\phi_\text{G}\cos\theta_\text{G} = 0$.
+A 2-axis (roll--pitch) gimbal combined with the multicopter's free yaw has input-twist determinant $\cos\phi_\text{G}\cos\theta_\text{G}$, hence a codimension-one singular set $\cos\phi_\text{G}\cos\theta_\text{G}=0$ that obstructs full-roll maneuvers. The third gimbal axis removes the roll singularity: by~\eqref{eq:Jg_determinant} the only singularity is the gimbal pitch $\theta_\text{G}=\pm\frac{\pi}{2}$.
 \end{remark}
 
 \begin{assumption}[Non-Singularity]
 \label{ass:non_singularity}
-The multicopter gimbal attitude stays away from the singular set: $\phi_\text{G} \neq \pm \frac{\pi}{2} \land \theta_\text{G} \neq \pm \frac{\pi}{2}$.
+The gimbal pitch stays away from the singular set: $\theta_\text{G} \neq \pm \frac{\pi}{2}$.
 \end{assumption}
 
 \begin{remark}
-This assumption can be relaxed by using a planner which will avoid the singular set.
+This assumption can be relaxed by a planner that keeps the camera-pitch reference clear of the singular set.
 \end{remark}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -331,8 +320,8 @@ Consider the block-triangular Jacobian from inputs to camera acceleration and tw
 %%%%%%%%%%%%%%%%%%%%
 \begin{equation}
 \label{eq:J_block}
-\begin{bmatrix} \ddot{\mathbf{p}}_\text{MC} \\ \boldsymbol{\omega}_\text{MC} \end{bmatrix} = 
-\underbrace{\begin{bmatrix} \mathbf{I}_3 & \mathbf{0} \\ \mathbf{0} & \mathbf{S}(\phi_\text{G},\theta_\text{G})\end{bmatrix}}_{\mathbf{J}} \begin{bmatrix} \mathbf{a}_\text{MC} \\ \dot{\boldsymbol{\Theta}}_\text{MC} \end{bmatrix} + \begin{bmatrix} \boldsymbol\Delta \\ \mathbf{0} \end{bmatrix}.
+\begin{bmatrix} \ddot{\mathbf{p}}_\text{MC} \\ \boldsymbol{\omega}_\text{MC} \end{bmatrix} =
+\underbrace{\begin{bmatrix} \mathbf{I}_3 & \mathbf{0} \\ \mathbf{0} & \mathbf{J}_\text{G}(\phi_\text{G},\theta_\text{G})\end{bmatrix}}_{\mathbf{J}} \begin{bmatrix} \mathbf{a}_\text{MC} \\ \mathbf{u}_\text{G} \end{bmatrix} + \begin{bmatrix} \boldsymbol\Delta \\ \mathbf{R}(\mathbf{q}_\text{G})^\top\boldsymbol{\omega}_\text{M} \end{bmatrix}.
 \end{equation}
 %%%%%%%%%%%%%%%%%%%%
 
@@ -340,13 +329,9 @@ Consider the block-triangular Jacobian from inputs to camera acceleration and tw
 Thrust vectoring yields $\mathbf{a}_\text{MC} = -g \mathbf{e}_3 + \frac{T}{m_\text{M}} \mathbf{b}_3$; variations $\delta \mathbf{a}_\text{MC} = \frac{\delta T}{m_\text{M}} \mathbf{b}_3 + \frac{T}{m_\text{M}} \delta \mathbf{b}_3$ span $\mathbb{R}^3$. Hence, $\mathbf{a}_\text{MC} \mapsto \ddot{\mathbf{p}}_\text{MC}$ is locally surjective.
 
 \paragraph{Rotational rank}
-By \eqref{eq:S_determinant}, $\mathrm{rank}(\mathbf{S}) = 3$, whenever $\cos\phi_\text{G}\cos\theta_\text{G} \neq 0$.
+By \eqref{eq:Jg_determinant}, $\mathrm{rank}(\mathbf{J}_\text{G}) = 3$ whenever $\cos\theta_\text{G} \neq 0$, so the gimbal rates span the camera angular velocity.
 
-Therefore, $\mathrm{rank}(\mathbf{J}) = 6$ almost everywhere, and the camera pose is \emph{output fully actuated} and \emph{small-time locally controllable}~(STLC) on $SE(3)$. 
-
-\begin{remark}
-With a 3-axis gimbal ($\mathbf{S} \equiv \mathbf{I}_3$), the result holds globally. The implementation evaluated in Section~\ref{sec:results} adopts this configuration, so the singular set in Assumption~\ref{ass:non_singularity} is reduced to the multicopter's own attitude singularity ($q_0 = 0$, i.e.\ fully inverted body) and to thrust loss.
-\end{remark}
+Therefore, $\mathrm{rank}(\mathbf{J}) = 6$ for all $\theta_\text{G} \neq \pm\frac{\pi}{2}$, and the camera pose is \emph{output fully actuated} and \emph{small-time locally controllable}~(STLC) on $SE(3)$.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -382,38 +367,30 @@ Taking two derivatives gives the desired multicopter's acceleration
 which the $SE(3)$ inner loop (third line of \eqref{eq:quad_dynamics}) can track so that $\mathbf{p}_\text{M} + \mathbf{R}(\mathbf{q}_\text{M})\mathbf{t}_\text{G} \rightarrow \mathbf{p}_\text{A} + \mathbf{R}(\mathbf{q}_\text{A})\mathbf{t}_\text{AC}$.
 
 \paragraph{Orientation matching}
-We require $\mathbf{q}_\text{M} \otimes \mathbf{q}_\text{G} = \mathbf{q}_\text{A}$. Decompose the multicopter attitude into free yaw and tilt:
+We require $\mathbf{q}_\text{M} \otimes \mathbf{q}_\text{G} = \mathbf{q}_\text{A}$. The multicopter attitude is dictated by translation,
 %%%%%%%%%%%%%%%%%%%%
 \begin{equation}
 \label{eq:q_split_combined}
 \mathbf{q}_\text{M} = \mathbf{q}_z(\psi_\text{M}) \otimes \mathbf{q}_\text{tilt},
 \end{equation}
 %%%%%%%%%%%%%%%%%%%%
-where $\mathbf{q}_\text{tilt}$ sets the thrust direction dictated by $\mathbf{a}_\text{M}$, and $\psi_\text{M}$ is the free yaw about $\vec{\mathbf{z}}_\text{M}$.
-Define relative camera quaternion
+where $\mathbf{q}_\text{tilt}$ sets the thrust direction required by $\mathbf{a}_\text{M}$ and the free yaw is held at $\psi_\text{M}=0$. The residual rotation is assigned to the gimbal,
 %%%%%%%%%%%%%%%%%%%%
 \begin{equation}
 \label{eq:q_rel_combined}
-\mathbf{q}_\text{rel} = \bar{\mathbf{q}}_\text{M} \otimes \mathbf{q}_\text{A} = \bar{\mathbf{q}}_\text{tilt} \otimes \mathbf{q}_z(-\psi_\text{M}) \otimes \mathbf{q}_\text{A}.
+\mathbf{q}_\text{rel} = \bar{\mathbf{q}}_\text{M} \otimes \mathbf{q}_\text{A}.
 \end{equation}
 %%%%%%%%%%%%%%%%%%%%
-To cancel the yaw, choose
-%%%%%%%%%%%%%%%%%%%%
-\begin{equation}
-\label{eq:yaw_sched_combined}
-\bar{\psi}_\text{M} = \mathrm{yaw}\left( \bar{\mathbf{q}}_\text{tilt} \otimes \mathbf{q}_\text{A} \right).
-\end{equation}
-%%%%%%%%%%%%%%%%%%%%
-Then, $\mathbf{q}_\text{rel}$ has zero yaw and, therefore, lies in the roll-pitch submanifold. Hence, there exist $(\phi_\text{G}, \theta_\text{G})$ such that
+Because the 3-axis gimbal parameterizes the full rotation group, there exist $(\phi_\text{G},\theta_\text{G},\psi_\text{G})$ with $\theta_\text{G}\neq\pm\frac{\pi}{2}$ such that
 %%%%%%%%%%%%%%%%%%%%
 \begin{equation}
 \label{eq:qG_choice_combined}
-\mathbf{q}_\text{G} = \mathbf{q}_x(\phi_\text{G}) \otimes \mathbf{q}_y(\theta_\text{G}) = \mathbf{q}_\text{rel}.
+\mathbf{q}_\text{G} = \mathbf{q}_x(\phi_\text{G}) \otimes \mathbf{q}_y(\theta_\text{G}) \otimes \mathbf{q}_z(\psi_\text{G}) = \mathbf{q}_\text{rel}.
 \end{equation}
 %%%%%%%%%%%%%%%%%%%%
-This yields $\mathbf{q}_\text{M} \otimes \mathbf{q}_\text{G} = \mathbf{q}_\text{A}$, so camera orientations match exactly.
+This yields $\mathbf{q}_\text{M} \otimes \mathbf{q}_\text{G} = \mathbf{q}_\text{A}$, so the camera orientations match exactly. The third gimbal axis is what makes this hold for arbitrary $\mathbf{q}_\text{rel}$, in particular through full rolls and inverted attitudes, whereas a 2-axis gimbal realizes only the roll-pitch submanifold.
 
-Under Assumptions~\ref{ass:non_singularity} and \ref{ass:authority}, the multicopter with a \mbox{2-axis} gimbal is output fully actuated and STLC on $SE(3)$ for the camera pose, and control inputs exist which realise $\mathbf{y}_\text{MC}(t) \equiv \mathbf{y}_\text{AC}(t)$ for any feasible fixed-wing camera trajectory. With identical intrinsics, the rendered image streams are indistinguishable to the viewer.
+Under Assumptions~\ref{ass:non_singularity} and~\ref{ass:authority}, the multicopter with a 3-axis gimbal is output fully actuated and STLC on $SE(3)$ for the camera pose, and control inputs exist which realise $\mathbf{y}_\text{MC}(t) \equiv \mathbf{y}_\text{AC}(t)$ for any feasible fixed-wing camera trajectory $\mathbf{y}_\text{AC} \in \mathcal{F}$ (the feasible set is characterized in Section~\ref{ssec:feasible}). With identical intrinsics, the rendered image streams are indistinguishable to the viewer.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -514,15 +491,7 @@ where $N$ is the system's rank.
 \end{figure}
 %%%%%%%%%%%%%%%%%
 
-% For the system~(\ref{eq:quad_dynamics}), it can be shown that $\mathbf{r} = \begin{bmatrix}2 & 2 & 2 & 1 & 1 & 1\end{bmatrix}$, and $N = 14$ ~\cite{sarabakha2025data}. Since, $\sum_{i = 1}^{6}{r_i} = 9 \neq 14$, the condition~(\ref{eq:condition}) is not satisfied. Therefore, the input-output decoupling problem is not solvable for the system~(\ref{eq:quad_dynamics}) by means of a static state feedback control law. In fact, $\Delta(\mathbf{x}_\text{M})$ is singular for any $\mathbf{x}_\text{M}$ and is not invertible. So, the system (\ref{eq:quad_dynamics}) can not be transformed into an equivalent linear and controllable one by static state feedback. This is due to the fact that $\mathbf{a}_\text{M}$ is affected only by thrust $T$ and not by other control inputs. In order to get $\Delta(\mathbf{x})$ non-singular, the appearance of $T$ should be delayed to higher order derivatives of $\mathbf{a}_\text{M}$. This can be achieved by a dynamic compensator which incorporates an additional set of state variables $\boldsymbol{\chi}$ to achieve higher relative degrees~\cite{Mistler2001ROMAN}.
-For the system~(\ref{eq:quad_dynamics}) with the 3-axis gimbal, the output vector is chosen as
-%%%%%%%%%%%%%%%%%%%%
-\begin{equation}
-\mathbf{y}_\text{M} = \begin{bmatrix} x_\text{M} & y_\text{M} & z_\text{M} & q_{\text{M},3} & \phi_\text{G} & \theta_\text{G} & \psi_\text{G} \end{bmatrix}^\top,
-\label{eq:y_M_DFL}
-\end{equation}
-%%%%%%%%%%%%%%%%%%%%
-where $q_{\text{M},3}$ is the third (vector) component of $\mathbf{q}_\text{M}$ and acts as a smooth yaw proxy for the multicopter body; using a quaternion component instead of $R_{\text{bw}}(2,1) = \sin(\psi_\text{M})\cos(\theta_\text{M})$ avoids the degeneracy of the Euler-angle yaw output at large pitch. It can be shown that $\mathbf{r} = \begin{bmatrix} 2 & 2 & 2 & 1 & 1 & 1 & 1 \end{bmatrix}$ and $N = 15$~\cite{sarabakha2025data}. Since $\sum_{i=1}^{7} r_i = 10 \neq 15$, the condition~(\ref{eq:condition}) is not satisfied and the input-output decoupling problem is not solvable for~(\ref{eq:quad_dynamics}) by static state feedback. In fact, $\Delta(\mathbf{x}_\text{M})$ is singular for any $\mathbf{x}_\text{M}$ and is not invertible, because $\mathbf{a}_\text{M}$ is affected only by thrust $T$ and not by other control inputs. In order to get $\Delta(\mathbf{x})$ non-singular, the appearance of $T$ should be delayed to higher order derivatives of $\mathbf{a}_\text{M}$. This can be achieved by a dynamic compensator which incorporates an additional set of state variables $\boldsymbol{\chi}$ to achieve higher relative degrees~\cite{Mistler2001ROMAN}.
+For the system~\eqref{eq:quad_dynamics} with the seven outputs $\mathbf{y}_\text{O} = \begin{bmatrix} \mathbf{p}_\text{MC}^\top & q_3 & \boldsymbol{\Theta}_\text{G}^\top \end{bmatrix}^\top$ (camera position, multicopter yaw component $q_3$, and the three gimbal angles), the vector relative degree is $\mathbf{r} = \begin{bmatrix}2 & 2 & 2 & 2 & 1 & 1 & 1\end{bmatrix}$ with $N = 15$~\cite{sarabakha2025data}. Since $\sum_{i} r_i = 11 \neq 15$, the condition~\eqref{eq:condition} is not satisfied. Therefore, the input-output decoupling problem is not solvable for the system~(\ref{eq:quad_dynamics}) by means of a static state feedback control law. In fact, $\Delta(\mathbf{x}_\text{M})$ is singular for any $\mathbf{x}_\text{M}$ and is not invertible. So, the system (\ref{eq:quad_dynamics}) can not be transformed into an equivalent linear and controllable one by static state feedback. This is due to the fact that $\mathbf{a}_\text{M}$ is affected only by thrust $T$ and not by other control inputs. In order to get $\Delta(\mathbf{x})$ non-singular, the appearance of $T$ should be delayed to higher order derivatives of $\mathbf{a}_\text{M}$. This can be achieved by a dynamic compensator which incorporates an additional set of state variables $\boldsymbol{\chi}$ to achieve higher relative degrees~\cite{Mistler2001ROMAN}.
 By setting $T$ equal to the output of an auxiliary dynamic system driven by a new reference input $\hat{T}$. The simplest way in which this result can be achieved is to set this auxiliary dynamic system equal to a double integrator. In this case, $\boldsymbol{\chi} = \begin{bmatrix} \chi_1 & \chi_2 \end{bmatrix}^\top$. So, $T$ is set equal to the output of a double integrator driven by $\ddot{T}$. The other input variables in~\eqref{eq:u_MC} are unchanged.
 Now, $T$ is not any-more an input for the system~\eqref{eq:quad_dynamics}, but becomes the internal state for the new dynamical system
 %%%%%%%%%%%%%%%%%%%%
@@ -533,23 +502,19 @@ Now, $T$ is not any-more an input for the system~\eqref{eq:quad_dynamics}, but b
 \dot{\mathbf{q}}_\text{M} = \frac{1}{2} \mathbf{G}\left(\mathbf{q}_\text{M}\right) \boldsymbol{\omega}_\text{M} \\
 \dot{\mathbf{v}}_\text{M} = -\boldsymbol{\omega}_\text{M} \times \mathbf{v}_\text{M} + \frac{1}{m_\text{M}} \begin{bmatrix} 0 & 0 & \chi \end{bmatrix}^\top \\
 \dot{\boldsymbol{\omega}}_\text{M} = -\left(\mathbf{J}_\text{M}\right)^{-1} \boldsymbol{\omega}_\text{M} \times (\mathbf{J}_\text{M} \boldsymbol{\omega}_\text{M}) + \left(\mathbf{J}_\text{M}\right)^{-1} \boldsymbol{\tau}_\text{M} \\
-\dot{\mathbf{q}}_\text{MC} = \frac{1}{2} \mathbf{G}\left(\mathbf{q}_\text{MC}\right) \mathbf{u}_\text{G} \\
+\dot{\boldsymbol{\Theta}}_\text{G} = \mathbf{u}_\text{G} \\
 \ddot{\chi} = \ddot{T}
 \end{cases}.
 \label{eq:new_quad_dynamics}
 \end{equation} 
 %%%%%%%%%%%%%%%%%%%%
-The new control inputs to the system~\eqref{eq:new_quad_dynamics} are
+The new control inputs to the system~\eqref{eq:new_quad_dynamics} are 
 %%%%%%%%%%%%%%%%%%%%
-% \begin{equation}
-% \hat{\mathbf{u}}_\text{MC} = \begin{bmatrix}\ddot{T} & \tau_{\phi} & \tau_{\theta} & \tau_{\psi} & \dot\theta_\text{G} & \dot\psi_\text{G} \end{bmatrix}^\top.
-% \end{equation}
 \begin{equation}
 \hat{\mathbf{u}}_\text{MC} = \begin{bmatrix}\ddot{T} & \tau_{\phi} & \tau_{\theta} & \tau_{\psi} & \dot\phi_\text{G} & \dot\theta_\text{G} & \dot\psi_\text{G} \end{bmatrix}^\top.
 \end{equation}
 %%%%%%%%%%%%%%%%%%%%
-% The input-output decoupling problem is solvable for the system (\ref{eq:quad_dynamics}) by means of a dynamic feedback control law, if it is solvable via static feedback for the extended system (\ref{eq:new_quad_dynamics}). Since the extended system has $\hat{\mathbf{r}} = \begin{bmatrix} 4 & 4 & 4 & 2 & 1 & 1 \end{bmatrix}$ and $\hat{N} = 16$, the condition~\eqref{eq:condition} is satisfied. Thus, the input-output decoupling problem is solvable for the system (\ref{eq:new_quad_dynamics}) by means of a dynamic feedback control law as in~\eqref{eq:feedback_control}:
-The input-output decoupling problem is solvable for the system (\ref{eq:quad_dynamics}) by means of a dynamic feedback control law, if it is solvable via static feedback for the extended system (\ref{eq:new_quad_dynamics}). Since the extended system has $\hat{\mathbf{r}} = \begin{bmatrix} 4 & 4 & 4 & 2 & 1 & 1 & 1 \end{bmatrix}$ and $\hat{N} = 17$, the condition~\eqref{eq:condition} is satisfied. Thus, the input-output decoupling problem is solvable for the system (\ref{eq:new_quad_dynamics}) by means of a dynamic feedback control law as in~\eqref{eq:feedback_control}:
+The input-output decoupling problem is solvable for the system (\ref{eq:quad_dynamics}) by means of a dynamic feedback control law, if it is solvable via static feedback for the extended system (\ref{eq:new_quad_dynamics}). Since the extended system has $\hat{\mathbf{r}} = \begin{bmatrix} 4 & 4 & 4 & 2 & 1 & 1 & 1 \end{bmatrix}$ and $\hat{N} = 17$, with $\sum_i \hat{r}_i = 17 = \hat{N}$, the condition~\eqref{eq:condition} is satisfied. Thus, the input-output decoupling problem is solvable for the system (\ref{eq:new_quad_dynamics}) by means of a dynamic feedback control law as in~\eqref{eq:feedback_control}:
 %%%%%%%%%%%%%%%%%%%%
 \begin{equation}
 \hat{\mathbf{u}}_\text{MC} = \alpha(\hat{\mathbf{x}}_\text{MC}) + \beta(\hat{\mathbf{x}}_\text{MC}) \mathbf{v}_\text{MC},
@@ -560,9 +525,51 @@ where $\alpha(\hat{\mathbf{x}}_\text{MC})$ and $\beta(\hat{\mathbf{x}}_\text{MC}
 \begin{equation}
 \mathbf{v}_\text{MC} = \begin{bmatrix} \mathbf{p}_\text{AC}^\top & \dot{\mathbf{p}}_\text{AC}^\top & \ddot{\mathbf{p}}_\text{AC}^\top & \dddot{\mathbf{p}}_\text{AC}^\top & \ddddot{\mathbf{p}}_\text{AC}^\top & \mathbf{q}_\text{A}^\top & \dot{\mathbf{q}}_\text{A}^\top & \ddot{\mathbf{q}}_\text{A}^\top \end{bmatrix}.
 \end{equation}
-The gimbal references $(\phi_\text{G}, \theta_\text{G}, \psi_\text{G})$ that close the orientation channel are extracted from the relative quaternion $\mathbf{q}_\text{rel} = \bar{\mathbf{q}}_\text{M} \otimes \mathbf{q}_\text{A}$ in the X-Y-Z Euler sequence consistent with $\mathbf{q}_\text{G}$, and their rate feed-forward is obtained by inverting the body-frame gimbal Jacobian $\mathbf{J}_\text{G}(\phi_\text{G}, \theta_\text{G})$ whose determinant is $\cos\theta_\text{G}$, so the only kinematic singularity of the extended system is the multicopter's own attitude inversion. Because the three-axis gimbal absorbs the full $SO(3)$ camera attitude, the multicopter is free to hold its body yaw at zero (i.e.\ $q_{\text{M},3} = 0$) and no yaw schedule is required on the drone.
 An overview of the proposed framework is shown in Fig. \ref{fig:framework}.
 %%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Closed-Loop Realization}
+\label{ssec:closedloop}
+The feedback~\eqref{eq:feedback_control_extended} renders each output an integrator chain, $y_i^{(r_i)} = v_i$, decoupled from the others. We close the chains with a two-degree-of-freedom law
+%%%%%%%%%%%%%%%%%%%%
+\begin{equation}
+\label{eq:tracking_law}
+v_i = y_{\text{ref},i}^{(r_i)} + \sum_{j=0}^{r_i-1} c_{i,j}\big(y_{\text{ref},i}^{(j)} - y_i^{(j)}\big),
+\end{equation}
+%%%%%%%%%%%%%%%%%%%%
+so the tracking error $e_i = y_i - y_{\text{ref},i}$ obeys the certified linear dynamics $e_i^{(r_i)} + \sum_{j} c_{i,j}\, e_i^{(j)} = 0$.
+
+\begin{remark}[One-parameter gains]
+Placing all poles of every error chain at a single bandwidth $-\omega$ forces the gains to the binomial coefficients $c_{i,j} = \binom{r_i}{j}\,\omega^{\,r_i-j}$. The closed loop is then critically damped (monotone error decay, no overshoot) and tuned by the single parameter $\omega$, removing any hand-chosen gain vector.
+\end{remark}
+
+\begin{remark}[Singularity-robust inverse]
+The decoupling matrix $\Delta(\hat{\mathbf{x}}_\text{MC})$ carries a $1/q_0$ factor that diverges as the multicopter inverts ($q_0 \to 0$). Evaluating $\beta = (\Delta)^{-1}$ with $|q_0|$ floored at a small $\varepsilon$ yields a damped-inverse law that is exact away from the singular set and bounded through inverted flight, at the cost of an $O(\varepsilon)$ deviation in a neighbourhood of $q_0 = 0$.
+\end{remark}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Feasible Set and Reference Governor}
+\label{ssec:feasible}
+The exact inverse maps a reference and its derivatives to the required inputs. Collecting the actuator and gimbal limits into $\mathcal{U} = \{\, 0 \le T \le T_\text{max},\ \|\boldsymbol{\tau}_\text{M}\| \le \tau_\text{max},\ \|\mathbf{u}_\text{G}\| \le \dot\Theta_\text{max},\ \cos\theta_\text{G} \neq 0 \,\}$, the nonsingularity of $\beta$ pulls these limits back exactly into the linearizing coordinates.
+
+\begin{lemma}[Feasible set]
+\label{lem:feasible}
+Let $\mathbf{v}_\text{MC}(t)$ collect the reference $\mathbf{y}_\text{AC}(t)$ and its derivatives as in~\eqref{eq:feedback_control_extended}, and define
+%%%%%%%%%%%%%%%%%%%%
+\begin{equation}
+\label{eq:feasible_set}
+\mathcal{F} = \big\{\, \mathbf{y}_\text{AC}(\cdot) : \alpha(\hat{\mathbf{x}}_\text{MC}(t)) + \beta(\hat{\mathbf{x}}_\text{MC}(t))\,\mathbf{v}_\text{MC}(t) \in \mathcal{U}\ \ \forall t \,\big\}.
+\end{equation}
+%%%%%%%%%%%%%%%%%%%%
+Then for every $\mathbf{y}_\text{AC} \in \mathcal{F}$ the dynamic feedback~\eqref{eq:feedback_control_extended} realizes $\mathbf{y}_\text{MC}(t) \equiv \mathbf{y}_\text{AC}(t)$ with inputs that satisfy $\mathcal{U}$.
+\end{lemma}
+
+Lemma~\ref{lem:feasible} replaces the non-constructive Assumption~\ref{ass:authority} with a checkable condition: the authority requirement is exactly the membership $\mathbf{y}_\text{AC} \in \mathcal{F}$, the preimage of the input-constraint set $\mathcal{U}$ under the system inverse.
+
+\begin{remark}[Reference governor]
+For a reference outside $\mathcal{F}$, a time-scaling governor $\mathbf{y}_\text{AC}^{\lambda}(t) = \mathbf{y}_\text{AC}(\lambda t)$, $\lambda \in (0,1]$, scales the $k$-th reference derivative by $\lambda^{k}$; the largest $\lambda$ with $\mathbf{y}_\text{AC}^{\lambda} \in \mathcal{F}$ gives the most aggressive feasibly-emulated version of the maneuver. As thrust-to-weight and rate demands are mass-invariant under feedback linearization, $\mathcal{F}$ and $\lambda$ depend on the reference and the platform limits, not on the vehicle mass.
+\end{remark}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -583,7 +590,7 @@ An overview of the proposed framework is shown in Fig. \ref{fig:framework}.
 
 
 % \subsection{Trajectory 6: Split-S}
-\input{results}
+\input{Results}
 
 
 
@@ -595,7 +602,7 @@ An overview of the proposed framework is shown in Fig. \ref{fig:framework}.
 
 
 
-This work has designed and validated a control framework for physical-to-physical emulation, demonstrating that a multicopter equipped with a two-axis gimbal can dynamically replicate the camera viewpoint and flight dynamics of a fixed-wing aircraft. Our approach, based on DFL, provides a practical method for achieving high-fidelity mimicry of a primary system's key observables. This capability enables algorithm validation and operator training in real-world conditions at a negligible cost and with significantly reduced operational risk compared to deploying the high-value fixed-wing planes. Furthermore, the principles developed can be generalized to other classes of dissimilar dynamic systems, such as ground or underwater vehicles, opening new paradigms for cross-system validation.
+This work has designed and validated a control framework for physical-to-physical emulation, demonstrating that a multicopter equipped with a 3-axis gimbal can dynamically replicate the camera viewpoint and flight dynamics of a fixed-wing aircraft. Our approach, based on exact dynamic feedback linearization, provides a practical method for achieving high-fidelity mimicry of a primary system's key observables, and characterizes constructively the set of references a given platform can emulate. This capability enables algorithm validation and operator training in real-world conditions at a negligible cost and with significantly reduced operational risk compared to deploying the high-value fixed-wing planes. Furthermore, the principles developed can be generalized to other classes of dissimilar dynamic systems, such as ground or underwater vehicles, opening new paradigms for cross-system validation.
 
 %Future work will  focus on the transition to real-world hardware, which presents open research challenges in robust state estimation, the incorporation of actuator dynamics, and compensation for aerodynamic disturbances such as wind. 
 
@@ -603,6 +610,66 @@ This work has designed and validated a control framework for physical-to-physica
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\appendix
+\section{Lie-Derivative Derivation of the Control Law}
+\label{app:dfl}
+
+This appendix derives the dynamic-feedback-linearizing law~\eqref{eq:feedback_control_extended} explicitly, recovering by hand the decoupling matrix and drift that the open-source code generates symbolically. We take the lever arm $\mathbf{t}_\text{G}=\mathbf{0}$ (camera at the multicopter centre of mass), so that $\mathbf{p}_\text{MC}=\mathbf{p}_\text{M}$, and write $\mathbf{b}_3 = \mathbf{R}(\mathbf{q}_\text{M})\mathbf{e}_3$ for the body thrust axis and $\boldsymbol{\omega}_w = \mathbf{R}(\mathbf{q}_\text{M})\boldsymbol{\omega}_\text{M}$ for the body rate in $\mathcal{F}_\text{W}$. The skew operator is $[\cdot]_\times$.
+
+\subsection{Extended control-affine model}
+After the thrust double integrator $\dot{\zeta}=\xi,\ \dot{\xi}=\ddot{T}$ of Section~\ref{sec:method}, the extended state is $\hat{\mathbf{x}} = [\mathbf{p}_\text{M}^\top,\mathbf{q}_\text{M}^\top,\mathbf{v}^\top,\boldsymbol{\omega}_\text{M}^\top,\boldsymbol{\Theta}_\text{G}^\top,\zeta,\xi]^\top$, and the dynamics are control-affine, $\dot{\hat{\mathbf{x}}} = f(\hat{\mathbf{x}}) + \sum_{i=1}^{7} g_i(\hat{\mathbf{x}})\,\hat{u}_i$, with $\hat{\mathbf{u}}_\text{MC}=[\ddot{T},\tau_\phi,\tau_\theta,\tau_\psi,\dot{\phi}_\text{G},\dot{\theta}_\text{G},\dot{\psi}_\text{G}]^\top$ and
+\begin{equation}
+f=\begin{bmatrix}
+\mathbf{v}\\
+\tfrac12\mathbf{G}(\mathbf{q}_\text{M})\boldsymbol{\omega}_\text{M}\\
+\tfrac{\zeta}{m_\text{M}}\mathbf{b}_3 - g\mathbf{e}_3\\
+-\mathbf{J}_\text{M}^{-1}\,\boldsymbol{\omega}_\text{M}\times\mathbf{J}_\text{M}\boldsymbol{\omega}_\text{M}\\
+\mathbf{0}_3,\ \xi,\ 0
+\end{bmatrix}.
+\end{equation}
+The only nonzero input channels are $g_1=\partial/\partial\xi$ (thrust jerk), $[g_2,g_3,g_4]=\mathbf{J}_\text{M}^{-1}$ entering $\dot{\boldsymbol{\omega}}_\text{M}$, and $[g_5,g_6,g_7]=\mathbf{I}_3$ entering $\dot{\boldsymbol{\Theta}}_\text{G}$.
+
+\subsection{Relative degrees by repeated Lie differentiation}
+The outputs are $\mathbf{y}_\text{O}=[\mathbf{p}_\text{M}^\top,q_3,\boldsymbol{\Theta}_\text{G}^\top]^\top$.
+
+\emph{Position.} Differentiating along $f$,
+\begin{align}
+\dot{\mathbf{p}}_\text{M}&=\mathbf{v},\qquad
+\ddot{\mathbf{p}}_\text{M}=\tfrac{\zeta}{m_\text{M}}\mathbf{b}_3-g\mathbf{e}_3,\nonumber\\
+\mathbf{p}_\text{M}^{(3)}&=\tfrac{1}{m_\text{M}}\!\left(\xi\,\mathbf{b}_3+\zeta\,\dot{\mathbf{b}}_3\right),\nonumber\\
+\mathbf{p}_\text{M}^{(4)}&=\tfrac{1}{m_\text{M}}\!\left(\ddot{T}\,\mathbf{b}_3+2\xi\,\dot{\mathbf{b}}_3+\zeta\,\ddot{\mathbf{b}}_3\right),
+\label{eq:psnap}
+\end{align}
+with $\dot{\mathbf{b}}_3=\boldsymbol{\omega}_w\times\mathbf{b}_3$ and $\ddot{\mathbf{b}}_3=\dot{\boldsymbol{\omega}}_w\times\mathbf{b}_3+\boldsymbol{\omega}_w\times(\boldsymbol{\omega}_w\times\mathbf{b}_3)$. The inputs $\ddot{T}$ (through $\xi$) and $\boldsymbol{\tau}_\text{M}$ (through $\dot{\boldsymbol{\omega}}_\text{M}$ in $\ddot{\mathbf{b}}_3$) first appear in $\mathbf{p}_\text{M}^{(4)}$, so $r_{1,2,3}=4$. The double integrator is exactly what delays the thrust to the fourth derivative; without it $\mathbf{b}_3$ multiplies $T$ already at the second derivative and $\Delta$ is singular.
+
+\emph{Multicopter yaw.} From $\dot{\mathbf{q}}_\text{M}=\tfrac12\mathbf{G}(\mathbf{q}_\text{M})\boldsymbol{\omega}_\text{M}$ one has $\dot{q}_3=\tfrac12\boldsymbol{\gamma}^\top\boldsymbol{\omega}_\text{M}$ with $\boldsymbol{\gamma}^\top=[-q_2,\,q_1,\,q_0]$, whose derivative contains $\dot{\boldsymbol{\omega}}_\text{M}=\mathbf{J}_\text{M}^{-1}\boldsymbol{\tau}_\text{M}+\cdots$; hence $r_4=2$.
+
+\emph{Gimbal.} $\dot{\boldsymbol{\Theta}}_\text{G}=\mathbf{u}_\text{G}$ directly, so $r_{5,6,7}=1$.
+
+Thus $\hat{\mathbf{r}}=[4,4,4,2,1,1,1]$ and $\sum_i\hat{r}_i=17=\hat{N}$: the extended system is exactly input--output linearizable with no zero dynamics.
+
+\subsection{Decoupling matrix, drift, and inverse}
+Writing the highest derivatives as $[\mathbf{p}_\text{M}^{(4)\top},\ddot{q}_3,\dot{\boldsymbol{\Theta}}_\text{G}^\top]^\top=\mathbf{b}(\hat{\mathbf{x}})+\Delta(\hat{\mathbf{x}})\,\hat{\mathbf{u}}_\text{MC}$ and using $\dot{\boldsymbol{\omega}}_w|_{\text{input}}=\mathbf{R}(\mathbf{q}_\text{M})\mathbf{J}_\text{M}^{-1}\boldsymbol{\tau}_\text{M}$ in~\eqref{eq:psnap}, with the torque-to-position coupling block $\mathbf{M}_\tau = -\tfrac{\zeta}{m_\text{M}}[\mathbf{b}_3]_\times \mathbf{R}\mathbf{J}_\text{M}^{-1}$,
+\begin{equation}
+\Delta=\begin{bmatrix}
+\tfrac{1}{m_\text{M}}\mathbf{b}_3 & \mathbf{M}_\tau & \mathbf{0}\\[3pt]
+0 & \tfrac12\boldsymbol{\gamma}^\top\mathbf{J}_\text{M}^{-1} & \mathbf{0}\\[2pt]
+\mathbf{0} & \mathbf{0} & \mathbf{I}_3
+\end{bmatrix},
+\label{eq:Delta_app}
+\end{equation}
+where the block columns are the thrust-jerk, torque, and gimbal-rate channels, and the block rows are the position, yaw, and gimbal outputs. The gimbal block $\mathbf{I}_3$ factors out, leaving a four-dimensional thrust--attitude block whose determinant satisfies
+\begin{equation}
+\det\Delta \;\propto\; \zeta\,q_0,
+\label{eq:detDelta}
+\end{equation}
+up to a nonzero factor depending on $m_\text{M}$ and $\det\mathbf{J}_\text{M}$. Indeed, $[\mathbf{b}_3]_\times$ projects the torque channel onto the plane orthogonal to $\mathbf{b}_3$, which collapses as the thrust $\zeta\to0$, while $\boldsymbol{\gamma}^\top$ degenerates as $q_0\to0$ (the multicopter fully inverted). Hence $\Delta$ is nonsingular whenever $\zeta\neq0$ and $q_0\neq0$, and the law is
+\begin{equation}
+\hat{\mathbf{u}}_\text{MC}=\alpha(\hat{\mathbf{x}})+\beta(\hat{\mathbf{x}})\,\mathbf{v}_\text{MC},\qquad \alpha=-\Delta^{-1}\mathbf{b},\ \ \beta=\Delta^{-1}.
+\end{equation}
+The symbolically generated $\alpha$ and $\beta$ carry exactly the factors $1/\zeta$ and $1/q_0$ predicted by~\eqref{eq:detDelta}; the latter is the inverted-flight representation singularity that the damped inverse of Section~\ref{ssec:closedloop} regularizes by flooring $|q_0|$.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \bibliographystyle{IEEEtran}
 \bibliography{References}

@@ -1,0 +1,14 @@
+Comments to author (Associate Editor)
+=====================================
+
+Two reviews were collected for the paper. The reviewers
+concur in saying that the paper has moderate quality and
+limited relevance to the CCTA scope. 
+
+In particular, there is a lack of clearly defined
+requirements, which weakens the verification and makes the
+evaluation largely subjective. The novelty with respect to
+existing work is not sufficiently clarified, and the stated
+objectives are not fully supported by the validation.
+
+Finally, the results are based solely on simulations.

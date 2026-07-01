@@ -1,6 +1,14 @@
-function out = run_compare3(config_to_run, tag)
+function out = run_compare3(config_to_run, tag, omega, lambda)
 % run_compare3  Runner for the 3-axis (Phase 1+5) controller.
+%   omega  (optional, default 30 rad/s): single bandwidth for the
+%          critically-damped DFL stabilization (all error poles at -omega).
+%   lambda (optional, default 1): reference-governor pace factor in (0,1].
+%          lambda<1 emulates the maneuver slowed so the inverse stays in F;
+%          the horizon is extended to t_end/lambda and the initial camera
+%          velocity is scaled by lambda accordingly.
     if nargin < 2, tag = config_to_run; end
+    if nargin < 3 || isempty(omega), omega = 30; end
+    if nargin < 4 || isempty(lambda), lambda = 1; end
 
     here = fileparts(mfilename('fullpath'));
     cd(here);
@@ -12,10 +20,22 @@ function out = run_compare3(config_to_run, tag)
     end
     run(cpath);
 
-    % Augment dfl_gains with the new q3/psi_g gains if missing
-    if ~isfield(dfl_gains, 'c_q3'),     dfl_gains.c_q3     = 100; end
-    if ~isfield(dfl_gains, 'c_q3_dot'), dfl_gains.c_q3_dot = 20;  end
-    if ~isfield(dfl_gains, 'c_psig'),   dfl_gains.c_psig   = 50;  end
+    % Use a realistic ~5 kg platform (single source of truth), overriding the
+    % unrealistic micro-quad params in the configs.
+    quad_params = quad_platform_params();
+
+    % Theoretically-grounded gain rule: place ALL error-dynamics poles at
+    % -omega (critically damped). Binomial gains are forced by the single
+    % bandwidth omega -- no arbitrary gain vector. Overrides any config gains.
+    if ~exist('dfl_gains', 'var'), dfl_gains = struct(); end
+    dfl_gains = critically_damped_gains(omega, dfl_gains);
+
+    % Reference governor: pace the maneuver by lambda and extend the horizon so
+    % it completes (FW-time tau = lambda*t reaches t_end at t = t_end/lambda).
+    fw_controls.lambda = lambda;
+    if lambda < 1
+        t_sim = 0:delta_t:(t_end/lambda);
+    end
 
     global m Ix Iy Iz g Ax Ay Az Ap Aq Ar
     m = quad_params.m; Ix = quad_params.Ix; Iy = quad_params.Iy; Iz = quad_params.Iz;
@@ -25,7 +45,8 @@ function out = run_compare3(config_to_run, tag)
     fw_x0 = fw_initial.x0;
     x0_quad = fw_x0(1) - 0.01; y0_quad = fw_x0(2) - 0.001; z0_quad = fw_x0(3) - 0.001;
     q0_quad=1; q1_quad=0; q2_quad=0; q3_quad=0;
-    u0_quad = fw_initial.u0; v0_quad = fw_initial.v0; w0_quad = fw_initial.w0;
+    % initial camera velocity is the governed (slowed) reference velocity
+    u0_quad = lambda*fw_initial.u0; v0_quad = lambda*fw_initial.v0; w0_quad = lambda*fw_initial.w0;
     p_quad=0; q_quad=0; r_quad=0;
     zeta = quad_params.m*quad_params.g; xi = 0;
     phi_g=0; theta_g=0; psi_g=0;

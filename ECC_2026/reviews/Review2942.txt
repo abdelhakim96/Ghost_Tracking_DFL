@@ -1,0 +1,32 @@
+Reviewer 20 of CCTA 2026 submission 136
+
+Comments to the author
+======================
+
+The paper addresses an interesting and practically relevant
+problem, and the DFL-based approach is technically sound in
+its general structure. However, several issues need to be
+addressed before publication.
+
+Major Issues
+
+The central motivation claims to avoid stall risks and
+minimum airspeed constraints, but stall is never modeled
+and the aerodynamic model is only valid well above stall
+speed. The main selling point of the paper is never
+actually demonstrated.
+
+The mimicry proof in Section III.B relies on Assumption 2
+which is essentially circular: it assumes the framework
+works where it works, without ever formally characterizing
+the set of feasible trajectories over which the result
+holds.
+
+
+Minor Issues
+
+Control inputs are never shown in the validation.
+
+No quantitative metrics are reported (e.g., RMSE, maximum
+tracking error). Validation relies entirely on visual
+inspection of plots.
